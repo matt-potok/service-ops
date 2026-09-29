@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/TestResults/
+.env
+*.user
+.vs/
+.idea/
+frontend/playwright-report/
+frontend/test-results/

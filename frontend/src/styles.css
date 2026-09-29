@@ -1,0 +1,54 @@
+:root { font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+body { margin: 0; }
+.brand { display: flex; align-items: center; gap: 13px; }
+.brand strong { display: block; font-size: 21px; letter-spacing: .13em; font-weight: 700; line-height: 1.2; }
+.brand small { display: block; font-size: 9px; letter-spacing: .17em; margin-top: 4px; }
+.brand-mark { position: relative; font-size: 36px; font-weight: 750; line-height: 1; letter-spacing: -.09em; padding-right: 5px; }
+.brand-mark span { position: absolute; height: 4px; width: 16px; background: #99c8a7; bottom: 2px; right: 0; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .15em; color: #567568; }
+.login-layout { min-height: 100svh; display: grid; grid-template-columns: minmax(350px, 46%) 1fr; }
+.login-story { position: relative; overflow: hidden; background: #142f32; color: #f4f7f2; padding: 52px 56px 30px; display: flex; flex-direction: column; }
+.story-copy { margin: auto 0; padding: 100px 0 145px; z-index: 1; }
+.story-copy .eyebrow { color: #a5c6b8; }
+.story-copy h1 { font-weight: 500; font-size: clamp(40px, 4vw, 62px); line-height: 1.12; letter-spacing: -.05em; margin: 25px 0; }
+.story-copy p { color: #c0d0cc; font-size: 16px; line-height: 1.8; }
+.story-footer { display: flex; justify-content: space-between; font-size: 9px; letter-spacing: .12em; color: #b4c6c2; z-index: 1; gap: 20px; }
+.architectural-lines { position: absolute; width: 75%; height: 310px; right: -17%; bottom: 58px; transform: skewY(-25deg); pointer-events: none; opacity: .42; }
+.architectural-lines i { display: block; position: absolute; border: 1px solid #608779; width: 100%; height: 100%; }
+.architectural-lines i:nth-child(2) { transform: translate(-36px, 28px); }
+.architectural-lines i:nth-child(3) { transform: translate(-72px, 56px); }
+.architectural-lines i:nth-child(4) { transform: translate(-108px, 84px); }
+.login-panel { position: relative; background: #fafbf9; padding: 72px 50px; display: flex; align-items: center; justify-content: center; }
+.login-form { width: 100%; max-width: 410px; padding: 40px 0; }
+.login-form h2 { font-size: 35px; line-height: 1.2; max-width: 380px; }
+.login-footer { position: absolute; bottom: 28px; left: 50px; right: 50px; display: flex; justify-content: space-between; color: #6b7b74; font-size: 11px; }
+.session-state { min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; }
+.workspace { display: flex; flex-direction: column; min-height: 100svh; }
+.workspace-header { padding: 22px 42px; display: flex; align-items: center; gap: 40px; border-bottom: 1px solid #dce4dd; background: white; }
+.workspace-header .brand { color: #173b35; }
+.product-name { border-left: 1px solid #dce4dd; padding-left: 30px; color: #566763; font-size: 15px; }
+.workspace-header button { margin-left: auto; }
+.home-content { width: 100%; max-width: 1180px; padding: 70px 42px; margin: 0 auto; flex: 1; }
+.workspace-footer { padding: 24px 42px; display: flex; justify-content: space-between; font-size: 12px; color: #63756b; gap: 16px; }
+.skip-link { position: absolute; top: -100px; padding: 12px; background: white; color: #205d56; z-index: 10; }
+.skip-link:focus { top: 0; }
+@media (max-width: 1000px) {
+  .login-story { padding: 38px 32px 26px; }
+  .login-panel { padding: 64px 32px; }
+  .story-footer { flex-direction: column; gap: 8px; }
+  .story-copy h1 { font-size: 42px; }
+  .desktop-break { display: none; }
+}
+@media (max-width: 700px) {
+  .login-layout { grid-template-columns: 1fr; }
+  .login-story { padding: 25px 28px; }
+  .story-copy, .story-footer, .architectural-lines { display: none; }
+  .login-panel { padding: 32px 26px 90px; }
+  .login-form { padding: 20px 0; }
+  .login-form h2 { font-size: 30px; }
+  .login-footer { left: 26px; right: 26px; }
+  .workspace-header { padding: 20px 24px; gap: 16px; }
+  .product-name { display: none; }
+  .home-content { padding: 44px 24px; }
+  .workspace-footer { padding: 24px; flex-direction: column; }
+}
