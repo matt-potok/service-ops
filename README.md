@@ -1,6 +1,6 @@
 # ServiceOps
 
-Atlas Facility Services' internal application. **Phase 1 only:** seeded sign-in, current account, sign-out, and server-side Operations/Manager policies. There are no work orders, dashboard, future navigation items, or account-management screens.
+Atlas Facility Services' internal application. **Phases 1–2:** seeded sign-in and a complete create-to-detail work-order flow with server-calculated SLA deadlines. Phase 3 and later features have not started. See [Phase 2 review](PHASE2_REVIEW.md) for implementation details and verification.
 
 ## Run with Docker Compose
 
@@ -29,7 +29,7 @@ Open **http://localhost:5173**. The web service may take a moment to install its
 | elena.brooks@atlas.example | Operations | Your SEED_OPERATIONS_PASSWORD value |
 | marcus.chen@atlas.example | Manager | Your SEED_MANAGER_PASSWORD value |
 
-The explicit migration job runs before API startup. Demo seeding is a separate command, allowed only in Development. Seed reruns preserve user IDs and password hashes and ensure each role membership exists. Changing a seed password variable does not reset an existing account password. No password-reset feature is implemented.
+The explicit migration job runs before API startup. Demo seeding is a separate command, allowed only in Development. Seed reruns preserve user IDs and password hashes and ensure each role membership exists. Changing a seed password variable does not reset an existing account password. No password-reset feature is implemented. Seeding also ensures 20 fictional customers, 50 locations, and 15 technicians exist, preserving stable IDs and existing records. It creates no work orders.
 
 ```powershell
 docker compose logs api web
@@ -91,6 +91,7 @@ dotnet test backend/ServiceOps.sln --no-build
 cd frontend
 npm ci
 npm run typecheck
+npm test
 npm run build
 ```
 
@@ -103,7 +104,7 @@ cd frontend
 npm run api:generate
 ```
 
-The generated `src/lib/api/schema.d.ts` is checked in. CI regenerates it and checks for drift. The GitHub Actions workflow also performs backend build/integration tests, frontend type/build checks, and Compose validation. It has been authored but not run on GitHub in this workspace.
+The generated `src/lib/api/schema.d.ts` is checked in. CI regenerates it and checks for drift. The GitHub Actions workflow also performs backend build/integration tests, frontend test/type/build checks, and Compose validation. It has been authored but not run on GitHub in this workspace.
 
 For schema changes in later approved work, `dotnet tool restore` installs the repository-local EF CLI manifest. There is no automatic migration during normal API startup.
 
@@ -115,38 +116,52 @@ backend/
   src/ServiceOps.Api/
     Features/Auth/       # Four auth endpoints and their DTOs
     Identity/            # ApplicationUser
-    Persistence/         # DbContext, Identity migration, demo seed
+    Features/WorkOrders/ # Create/detail endpoints and DTOs
+    Features/ReferenceData/ # Customer/location and creation-option lookups
+    Persistence/         # DbContext, mappings, migrations, user/reference seed
     Program.cs           # Configuration, middleware, commands, health
-  src/ServiceOps.Domain/ # Intentionally empty until business behavior exists
+  src/ServiceOps.Domain/ # Reference entities, WorkOrder creation and SLA rules
+  tests/ServiceOps.Domain.Tests/
   tests/ServiceOps.Api.IntegrationTests/
 frontend/
   src/app/               # Router, theme, brand, signed-in account view
   src/features/auth/     # Login form
+  src/features/work-orders/ # Create/detail, API calls, dependent-location test
   src/lib/api/           # Small fetch client and generated contract types
 .github/workflows/ci.yml
 compose.yaml
 ```
 
-No generic repositories, MediatR, unit-of-work wrapper, event bus, Redis, or future domain structures. The Domain project is present because the approved phase requests it, but the API does not reference an empty assembly. Identity stays in the API and uses direct EF Core.
+No generic repositories, MediatR, unit-of-work wrapper, event bus, Redis, or future domain structures. The API references the dependency-free Domain project. Identity and EF mappings stay in the API; controllers use EF Core directly.
 
-## Phase 1 choices and dependencies
+## Choices and dependencies
 
 | Dependency | Current purpose |
 | --- | --- |
 | ASP.NET Core Identity EF Core 10.0.12 | Password hashing, users, roles, lockout, and cookie sign-in using EF stores. |
 | Npgsql EF Core provider 10.0.3 | PostgreSQL persistence through EF Core. |
 | ASP.NET Core OpenAPI 10.0.12 | Development API contract. |
-| EF Core Design / dotnet-ef 10.0.12 | Generate the checked-in Identity migration. Design tooling is private to the project. |
+| EF Core Design / dotnet-ef 10.0.12 | Generate the checked-in migrations. Design tooling is private to the project. |
 | MVC Testing, Microsoft.NET.Test.Sdk, xUnit and runner | Real application integration tests against PostgreSQL. |
-| React 19.3 / React DOM | Interactive login and signed-in view. |
+| React 19.3 / React DOM | Login, account, creation, and detail screens. |
 | Material UI 9.4 with Emotion | Form, account card, feedback, and theme styling. No grid/chart package yet. |
-| React Router 8.4 | Login, authenticated home, and not-found routing. |
-| TanStack Query 5.104 | Session loading/refresh and sign-in/out mutation state. |
+| React Router 8.4 | Authenticated home/create/detail routes and not-found routing. |
+| TanStack Query 5.104 | Session/reference/detail loading and sign-in/out/create mutation state. |
 | Vite 8.3 / React plugin / TypeScript 5.9 | Development server, build, and static checking. TS 5.9 satisfies the generator's peer constraint. |
-| openapi-typescript 7.13 | Generate the auth DTO types consumed by the frontend. |
+| openapi-typescript 7.13 | Generate API DTO types consumed by the frontend. |
 
 Exact versions and transitive dependencies are locked in NuGet/npm lockfiles. Passwords/cookies/request bodies are not logged. JSON console logs contain request method/path/status/duration and trace ID. Login is limited to 10 attempts/minute per remote address, with Identity lockout after five failures per user. The local Vite proxy means browser clients share a backend remote address; this is adequate for the local single-user demonstration.
 
-Simple built-in form validation is sufficient for two fields; React Hook Form/Zod are deferred until a feature actually needs them. Both roles currently use the same account page, with role badges. There are no role-specific navigation destinations because Phase 1 has no such feature.
+Local form state and explicit validation cover the current fields; no form framework is needed. Both roles can create and inspect work orders. Vitest 5.0.2, Testing Library React 16.3.3/DOM 10.4.2, and jsdom 30.1.1 are development-only dependencies for the focused customer/location component test. No new runtime package was needed.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md), [IMPLEMENTATION.md](IMPLEMENTATION.md), and [Phase 1 review](PHASE1_REVIEW.md) for scope, acceptance criteria, actual verification, and limitations.
+
+## Phase 2 review journey
+
+Sign in as Operations, choose **Create work order**, then select a customer and one of its locations. Choose a service type and priority, enter a title and description, and create the order. The app navigates to its detail URL; bookmark that URL until the queue is implemented in Phase 3. Refresh to verify persistence.
+
+High priority has a four-hour deadline and a three-hour risk threshold from the original creation time. Critical is two hours, Normal eight, and Low 24; all risk thresholds are 75% of duration. The server derives SLA state on every detail response. The page refreshes this response every minute while active, and displays the evaluation time and browser time zone. No SLA worker is involved.
+
+The backend tests also cover all priority durations and exact SLA boundaries, creation validation, customer/location mismatch, rejection of client-authoritative fields, unique sequence numbers, reference-seed reruns, detail reads, and transaction rollback when the activity insert fails. `npm test` checks that changing customer clears the selected location and replaces its options. The API accepts only the six documented creation fields; extra properties are rejected.
+
+When upgrading an existing Phase 1 checkout, preserve `.env` and its database volume. Run `docker compose up --build -d` followed by `docker compose --profile tools run --rm seed`, or rerun the host migration and seed commands above. No historical work-order dataset is seeded in this phase.

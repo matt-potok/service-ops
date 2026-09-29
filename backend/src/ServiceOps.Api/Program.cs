@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Threading.RateLimiting;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -60,7 +61,18 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
         404 => "not_found", 429 => "too_many_requests", _ => "server_error"
     };
 });
-builder.Services.AddControllers();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
+    options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
+// OpenAPI uses HTTP JSON options; keep its contract aligned with controller serialization.
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -74,6 +86,7 @@ if (args.Contains("--migrate") || args.Contains("--seed"))
         if (!app.Environment.IsDevelopment())
             throw new InvalidOperationException("Demo seeding is only allowed in Development.");
         await DemoUsers.SeedAsync(scope.ServiceProvider, app.Configuration);
+        await ReferenceDataSeed.SeedAsync(scope.ServiceProvider.GetRequiredService<ServiceOpsDbContext>());
     }
     return;
 }

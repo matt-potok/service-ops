@@ -18,11 +18,16 @@ export async function signOut(): Promise<void> {
   await post('/api/v1/auth/logout')
 }
 
-async function post(path: string, body?: LoginRequest): Promise<void> {
+export async function getCsrfToken(): Promise<string> {
   // Fetch a fresh token because antiforgery tokens are bound to the current identity.
   const csrf = await fetch('/api/v1/auth/csrf', { credentials: 'same-origin' })
   if (!csrf.ok) throw new Error('Unable to connect. Please try again.')
   const { token } = await csrf.json() as components['schemas']['CsrfResponse']
+  return token
+}
+
+async function post(path: string, body?: LoginRequest): Promise<void> {
+  const token = await getCsrfToken()
   const response = await fetch(path, {
     method: 'POST',
     credentials: 'same-origin',

@@ -52,3 +52,15 @@ body { margin: 0; }
   .home-content { padding: 44px 24px; }
   .workspace-footer { padding: 24px; flex-direction: column; }
 }
+.workspace-nav { display: flex; gap: 28px; padding: 0 42px; background: white; border-bottom: 1px solid #dce4dd; }
+.workspace-nav a { padding: 16px 0; color: #566763; text-decoration: none; font-size: 14px; border-bottom: 2px solid transparent; }
+.workspace-nav a.active { color: #205d56; border-color: #205d56; font-weight: 600; }
+.work-order-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; align-items: start; }
+.form-grid, .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.detail-grid { margin: 0; }
+.detail-grid dt { color: #63756b; font-size: 12px; margin-bottom: 6px; }
+.detail-grid dd { margin: 0; overflow-wrap: anywhere; }
+.home-content { padding-top: 40px; padding-bottom: 48px; }
+@media (max-width: 1000px) { .work-order-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 700px) { .form-grid, .detail-grid { grid-template-columns: minmax(0, 1fr); } .workspace-nav { padding: 0 24px; } }
+.detail-grid dd small { display: block; color: #63756b; margin-top: 5px; line-height: 1.5; }

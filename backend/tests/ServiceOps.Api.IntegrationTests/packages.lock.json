@@ -523,8 +523,12 @@
         "dependencies": {
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.12, )",
           "Microsoft.AspNetCore.OpenApi": "[10.0.12, )",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )"
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "ServiceOps.Domain": "[1.0.0, )"
         }
+      },
+      "serviceops.domain": {
+        "type": "Project"
       }
     }
   }

@@ -1,6 +1,6 @@
 # ServiceOps — Implementation Plan
 
-Status: Approved September 29, 2026. Phase 1 alone is authorized and implemented for review; later phases have not started.
+Status: Approved September 29, 2026. Phase 1 is accepted. Phase 2 is implemented for review; later phases have not started.
 
 Prepared: September 29, 2026. Companion specification: [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -160,4 +160,4 @@ Phases are sequential. Each can be independently reviewed and committed on top o
 
 ## Review gate
 
-Architecture and this phase plan have been approved. Phase 1 alone is implemented for review, with results in PHASE1_REVIEW.md. Do not proceed to Phase 2 without further direction. The suggested commit messages remain review boundaries, not automatic instructions to commit or publish.
+Architecture and this phase plan have been approved. Phase 1 is accepted. Phase 2 is implemented for review, with results in PHASE2_REVIEW.md. Do not proceed to Phase 3 without further direction. The suggested commit messages remain review boundaries, not automatic instructions to commit or publish.

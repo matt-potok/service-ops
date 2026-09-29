@@ -1,6 +1,6 @@
 # ServiceOps — Initial Architecture Proposal
 
-Status: Approved. Phase 1 implementation authorized September 29, 2026; later phases remain outside the current implementation scope.
+Status: Approved. Phase 1 accepted; Phase 2 implemented for review September 29, 2026. Phase 3 and later remain outside the current implementation scope.
 
 Prepared: September 28, 2026. Organization: Atlas Facility Services.
 
@@ -310,4 +310,4 @@ Create these as Proposed records, then mark Accepted only after architecture app
 
 The September 29 review preserves the modular monolith, direct EF Core, explicit domain rules, Current Operations/Period Performance distinction, and deterministic approximately 750-order dataset. It replaces HTTP preconditions with simple revision conflicts, allows open-order priority changes, reduces monitoring to periodic observations, and narrows test scope to valuable business behavior and critical integrations.
 
-Keep 24/7 resolution targets, the proposed reporting time zone, single-technician assignment, append-only notes, and no reopening as documented working defaults. No additional platform capabilities are implied. IMPLEMENTATION.md defines small vertical phases with review and commit boundaries. Following approval, Phase 1 alone is implemented; its review results and scope decisions are recorded in PHASE1_REVIEW.md. Stop for review before Phase 2.
+Keep 24/7 resolution targets, the proposed reporting time zone, single-technician assignment, append-only notes, and no reopening as documented working defaults. No additional platform capabilities are implied. IMPLEMENTATION.md defines small vertical phases with review and commit boundaries. Phase 1 is accepted. Phase 2 is implemented for review; its results and scoped decisions are recorded in PHASE2_REVIEW.md. Stop for review before Phase 3.

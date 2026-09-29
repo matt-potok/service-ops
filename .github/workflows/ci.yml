@@ -1,4 +1,4 @@
-name: Phase 1 checks
+name: Application checks
 on: [push, pull_request]
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
       - run: dotnet test backend/ServiceOps.sln --no-build -c Release
       - run: npm ci
         working-directory: frontend
-      - run: npm run typecheck && npm run build
+      - run: npm run typecheck && npm test && npm run build
         working-directory: frontend
       - name: Check generated API contract
         shell: bash
