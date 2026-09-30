@@ -5,6 +5,7 @@ import { getSession, signOut, type Session } from '../lib/api/client'
 import { LoginPage } from '../features/auth/LoginPage'
 import { CreateWorkOrderPage } from '../features/work-orders/CreateWorkOrderPage'
 import { WorkOrderDetailPage } from '../features/work-orders/WorkOrderDetailPage'
+import { WorkOrdersPage } from '../features/work-orders/WorkOrdersPage'
 import { Brand } from './Brand'
 
 export function App() {
@@ -17,6 +18,7 @@ export function App() {
     <Route element={session.data ? <WorkspaceLayout /> : <Navigate to="/login" replace />}>
       <Route path="/" element={session.data ? <Home session={session.data} /> : null} />
       <Route path="/work-orders/new" element={<CreateWorkOrderPage />} />
+      <Route path="/work-orders" element={<WorkOrdersPage />} />
       <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
     </Route>
     <Route path="*" element={<main className="session-state"><Typography variant="h2">Page not found</Typography><Button component={Link} to="/">Return home</Button></main>} />
@@ -35,7 +37,7 @@ function WorkspaceLayout() {
         {logout.isPending ? 'Signing out…' : 'Sign out'}
       </Button>
     </header>
-    <nav className="workspace-nav" aria-label="Workspace"><NavLink to="/" end>Home</NavLink><NavLink to="/work-orders/new">Create work order</NavLink></nav>
+    <nav className="workspace-nav" aria-label="Workspace"><NavLink to="/" end>Home</NavLink><NavLink to="/work-orders" end>Work orders</NavLink><NavLink to="/work-orders/new">Create work order</NavLink></nav>
     <main id="main" className="home-content">
       {logout.isError && <Alert severity="error" sx={{ mb: 3 }}>{logout.error.message}</Alert>}<Outlet />
     </main>

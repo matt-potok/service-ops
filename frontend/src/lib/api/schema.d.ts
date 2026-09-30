@@ -77,7 +77,52 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: {
+            parameters: {
+                query?: {
+                    Search?: string;
+                    CustomerId?: string;
+                    LocationId?: string;
+                    ServiceType?: components["schemas"]["ServiceType"];
+                    Status?: components["schemas"]["WorkOrderStatus"][];
+                    SlaStatus?: components["schemas"]["SlaState"];
+                    CreatedFrom?: string;
+                    CreatedTo?: string;
+                    OpenOnly?: boolean;
+                    Sort?: string;
+                    Page?: number;
+                    PageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["WorkOrderPage"];
+                        "application/json": components["schemas"]["WorkOrderPage"];
+                        "text/json": components["schemas"]["WorkOrderPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
         put?: never;
         post: {
             parameters: {
@@ -543,8 +588,39 @@ export interface components {
             /** Format: date-time */
             evaluatedAt: string;
         };
+        WorkOrderPage: {
+            items: components["schemas"]["WorkOrderSummary"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            totalCount: number;
+            /** Format: date-time */
+            evaluatedAt: string;
+        };
         /** @enum {unknown} */
         WorkOrderStatus: "New";
+        WorkOrderSummary: {
+            /** Format: uuid */
+            id: string;
+            number: string;
+            title: string;
+            /** Format: uuid */
+            customerId: string;
+            customerName: string;
+            /** Format: uuid */
+            locationId: string;
+            locationName: string;
+            serviceType: components["schemas"]["ServiceType"];
+            priority: components["schemas"]["Priority"];
+            status: components["schemas"]["WorkOrderStatus"];
+            slaState: components["schemas"]["SlaState"];
+            /** Format: date-time */
+            deadline: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
     };
     responses: never;
     parameters: never;

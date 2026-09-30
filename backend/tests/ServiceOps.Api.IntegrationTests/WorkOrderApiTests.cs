@@ -17,7 +17,7 @@ using Xunit;
 
 namespace ServiceOps.Api.IntegrationTests;
 
-public sealed class WorkOrderApiTests : IAsyncLifetime
+public sealed partial class WorkOrderApiTests : IAsyncLifetime
 {
     private readonly string databaseName = "serviceops_test_" + Guid.NewGuid().ToString("N");
     private readonly string adminConnection = Environment.GetEnvironmentVariable("TEST_DATABASE_CONNECTION")

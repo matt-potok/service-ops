@@ -22,6 +22,7 @@ export function WorkOrderDetailPage() {
   const state = { Good: { label: 'Good', color: 'success' }, AtRisk: { label: 'At risk', color: 'warning' }, Breached: { label: 'Breached', color: 'error' } } as const
   const badge = state[detail.slaState]
   return <>
+    <Button component={Link} to={typeof location.state?.returnTo === 'string' && /^\/work-orders(?:\?|$)/.test(location.state.returnTo) ? location.state.returnTo : '/work-orders'} sx={{ mb: 2 }}>← Back to work orders</Button>
     {location.state?.created && <Alert severity="success" sx={{ mb: 3 }}>Work order {detail.number} created.</Alert>}
     {order.isError && <Alert severity="warning" sx={{ mb: 3 }} action={<Button onClick={() => order.refetch()}>Retry</Button>}>Refresh failed. Showing the last loaded information; SLA status may be out of date.</Alert>}
     <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1.5 }}><Typography className="eyebrow">{detail.number}</Typography><Chip label={detail.status} size="small" variant="outlined" /></Stack>

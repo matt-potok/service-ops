@@ -3,6 +3,8 @@ import type { components } from '../../lib/api/schema'
 
 export type CreateWorkOrderInput = components['schemas']['CreateWorkOrderRequest']
 export type WorkOrderDetail = components['schemas']['WorkOrderDetail']
+export type WorkOrderSummary = components['schemas']['WorkOrderSummary']
+export type WorkOrderPage = components['schemas']['WorkOrderPage']
 export type CustomerOption = components['schemas']['CustomerOption']
 export type LocationOption = components['schemas']['LocationOption']
 export type CreationOptions = components['schemas']['CreationOptions']
@@ -36,6 +38,7 @@ export const getCustomers = (signal?: AbortSignal) => get<CustomerOption[]>('/ap
 export const getLocations = (id: string, signal?: AbortSignal) => get<LocationOption[]>(`/api/v1/customers/${id}/locations`, signal)
 export const getCreationOptions = (signal?: AbortSignal) => get<CreationOptions>('/api/v1/reference-data', signal)
 export const getWorkOrder = (id: string, signal?: AbortSignal) => get<WorkOrderDetail>(`/api/v1/work-orders/${id}`, signal)
+export const getWorkOrders = (query: string, signal?: AbortSignal) => get<WorkOrderPage>(`/api/v1/work-orders?${query}`, signal)
 
 export async function createWorkOrder(input: CreateWorkOrderInput): Promise<WorkOrderDetail> {
   const token = await getCsrfToken()

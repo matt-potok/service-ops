@@ -76,7 +76,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
-if (args.Contains("--migrate") || args.Contains("--seed"))
+if (args.Contains("--migrate") || args.Contains("--seed") || args.Contains("--seed-queue"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     if (args.Contains("--migrate"))
@@ -87,6 +87,11 @@ if (args.Contains("--migrate") || args.Contains("--seed"))
             throw new InvalidOperationException("Demo seeding is only allowed in Development.");
         await DemoUsers.SeedAsync(scope.ServiceProvider, app.Configuration);
         await ReferenceDataSeed.SeedAsync(scope.ServiceProvider.GetRequiredService<ServiceOpsDbContext>());
+    }
+    if (args.Contains("--seed-queue"))
+    {
+        if (!app.Environment.IsDevelopment()) throw new InvalidOperationException("Queue fixtures are only allowed in Development.");
+        await QueueReviewFixture.SeedAsync(scope.ServiceProvider.GetRequiredService<ServiceOpsDbContext>(), app.Configuration);
     }
     return;
 }

@@ -1,6 +1,6 @@
 # ServiceOps
 
-Atlas Facility Services' internal application. **Phases 1–2:** seeded sign-in and a complete create-to-detail work-order flow with server-calculated SLA deadlines. Phase 3 and later features have not started. See [Phase 2 review](PHASE2_REVIEW.md) for implementation details and verification.
+Atlas Facility Services' internal application. **Phases 1–3:** seeded sign-in, work-order creation/detail with server-calculated SLA deadlines, and a searchable operations queue. Phase 4 has not started. See [Phase 3 review](PHASE3_REVIEW.md) for implementation details and verification.
 
 ## Run with Docker Compose
 
@@ -126,7 +126,7 @@ backend/
 frontend/
   src/app/               # Router, theme, brand, signed-in account view
   src/features/auth/     # Login form
-  src/features/work-orders/ # Create/detail, API calls, dependent-location test
+  src/features/work-orders/ # Queue/URL state, create/detail, API calls and tests
   src/lib/api/           # Small fetch client and generated contract types
 .github/workflows/ci.yml
 compose.yaml
@@ -158,10 +158,38 @@ See [ARCHITECTURE.md](ARCHITECTURE.md), [IMPLEMENTATION.md](IMPLEMENTATION.md), 
 
 ## Phase 2 review journey
 
-Sign in as Operations, choose **Create work order**, then select a customer and one of its locations. Choose a service type and priority, enter a title and description, and create the order. The app navigates to its detail URL; bookmark that URL until the queue is implemented in Phase 3. Refresh to verify persistence.
+Sign in as Operations, choose **Create work order**, then select a customer and one of its locations. Choose a service type and priority, enter a title and description, and create the order. The app navigates to its detail URL; use the Work orders queue to find it again. Refresh to verify persistence.
 
 High priority has a four-hour deadline and a three-hour risk threshold from the original creation time. Critical is two hours, Normal eight, and Low 24; all risk thresholds are 75% of duration. The server derives SLA state on every detail response. The page refreshes this response every minute while active, and displays the evaluation time and browser time zone. No SLA worker is involved.
 
 The backend tests also cover all priority durations and exact SLA boundaries, creation validation, customer/location mismatch, rejection of client-authoritative fields, unique sequence numbers, reference-seed reruns, detail reads, and transaction rollback when the activity insert fails. `npm test` checks that changing customer clears the selected location and replaces its options. The API accepts only the six documented creation fields; extra properties are rejected.
 
 When upgrading an existing Phase 1 checkout, preserve `.env` and its database volume. Run `docker compose up --build -d` followed by `docker compose --profile tools run --rm seed`, or rerun the host migration and seed commands above. No historical work-order dataset is seeded in this phase.
+
+## Phase 3 operations queue
+
+Open **Work orders** in the workspace navigation. Search title/number, combine customer/location/service/status/SLA filters, sort the grid, and choose 25/50/100 rows per page. More filters exposes inclusive/exclusive created-time inputs in UTC and Open only. Other displayed timestamps use the named browser time zone. Filters, sort and page live in the URL; refresh and browser Back/Forward preserve them. Use the work-order number link to open detail, then **Back to work orders** to restore the queue URL.
+
+New is the only current workflow status. Technician/assignment, completed-date and attention filters are intentionally unavailable until their domain behavior exists. The API rejects these parameters instead of silently ignoring them. There are no workflow mutations or assignment controls in this phase.
+
+The only new runtime dependency is MIT-licensed MUI X Data Grid Community 9.14.0. Pagination, single-column sorting and filtering are server-side. No Pro package or paid feature is used. Existing test tooling is unchanged.
+
+### Optional small queue review fixture
+
+Normal `--seed` still creates only users/reference data. To review multiple pages, point the host connection string at an **empty work-order database**, run the normal migration and user/reference seed, then run:
+
+```powershell
+# Choose and retain a fixed anchor for reproducible content/timestamps.
+$env:QueueFixture__AnchorUtc = '2026-09-30T01:00:00Z'
+dotnet run --project backend/src/ServiceOps.Api --no-build -- --seed-queue
+```
+
+This separate Development-only command creates 60 New orders through the existing domain factory, with creation activities, varied services/priorities and 30-minute creation spacing. It requires the seeded reference data and Operations account. It refuses a nonempty work-order database, so a rerun never duplicates or rebases existing orders. IDs and numbers are generated normally; content and timestamps are deterministic for the chosen anchor. SLA states naturally age as server time advances. This is not the Phase 7 historical demonstration dataset.
+
+For Compose against an empty seeded database, the equivalent command is:
+
+```powershell
+docker compose --profile tools run --rm -e QueueFixture__AnchorUtc=2026-09-30T01:00:00Z seed --seed-queue
+```
+
+No new schema migration is required for Phase 3. See `PHASE3_REVIEW.md` for exact API semantics and query/index review.
