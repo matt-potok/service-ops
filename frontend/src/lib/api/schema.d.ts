@@ -70,6 +70,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-orders/{id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                    pageSize?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ActivityPage"];
+                        "application/json": components["schemas"]["ActivityPage"];
+                        "text/json": components["schemas"]["ActivityPage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders": {
         parameters: {
             query?: never;
@@ -83,6 +125,8 @@ export interface paths {
                     Search?: string;
                     CustomerId?: string;
                     LocationId?: string;
+                    TechnicianId?: string;
+                    Unassigned?: boolean;
                     ServiceType?: components["schemas"]["ServiceType"];
                     Status?: components["schemas"]["WorkOrderStatus"][];
                     SlaStatus?: components["schemas"]["SlaState"];
@@ -207,6 +251,195 @@ export interface paths {
                         "text/plain": components["schemas"]["ProblemDetails"];
                         "application/json": components["schemas"]["ProblemDetails"];
                         "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CorrectDetailsRequest"];
+                    "text/json": components["schemas"]["CorrectDetailsRequest"];
+                    "application/*+json": components["schemas"]["CorrectDetailsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["WorkOrderDetail"];
+                        "application/json": components["schemas"]["WorkOrderDetail"];
+                        "text/json": components["schemas"]["WorkOrderDetail"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssignmentRequest"];
+                    "text/json": components["schemas"]["AssignmentRequest"];
+                    "application/*+json": components["schemas"]["AssignmentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["WorkOrderDetail"];
+                        "application/json": components["schemas"]["WorkOrderDetail"];
+                        "text/json": components["schemas"]["WorkOrderDetail"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/status-transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StatusTransitionRequest"];
+                    "text/json": components["schemas"]["StatusTransitionRequest"];
+                    "application/*+json": components["schemas"]["StatusTransitionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["WorkOrderDetail"];
+                        "application/json": components["schemas"]["WorkOrderDetail"];
+                        "text/json": components["schemas"]["WorkOrderDetail"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TechnicianOption"][];
+                        "application/json": components["schemas"]["TechnicianOption"][];
+                        "text/json": components["schemas"]["TechnicianOption"][];
                     };
                 };
             };
@@ -482,6 +715,35 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ActivityItem: {
+            /** Format: uuid */
+            id: string;
+            eventType: components["schemas"]["WorkOrderEventType"];
+            /** Format: uuid */
+            actorUserId: string;
+            actorName: string;
+            /** Format: date-time */
+            effectiveAt: string;
+            /** Format: date-time */
+            recordedAt: string;
+            changes: null | components["schemas"]["JsonElement"];
+        };
+        ActivityPage: {
+            items: components["schemas"]["ActivityItem"][];
+            nextCursor: null | string;
+        };
+        AssignmentRequest: {
+            /** Format: uuid */
+            technicianId: null | string;
+            /** Format: int32 */
+            expectedRevision?: null | number;
+        };
+        CorrectDetailsRequest: {
+            title: string;
+            description: string;
+            /** Format: int32 */
+            expectedRevision?: null | number;
+        };
         CreateWorkOrderRequest: {
             /** Format: uuid */
             customerId: null | string;
@@ -504,6 +766,7 @@ export interface components {
             id: string;
             name: string;
         };
+        JsonElement: unknown;
         LocationOption: {
             /** Format: uuid */
             id: string;
@@ -544,7 +807,20 @@ export interface components {
             roles: string[];
         };
         /** @enum {unknown} */
-        SlaState: "Good" | "AtRisk" | "Breached";
+        SlaState: "Good" | "AtRisk" | "Breached" | null;
+        StatusTransitionRequest: {
+            targetStatus: null | components["schemas"]["WorkOrderStatus"];
+            reason?: null | string;
+            summary?: null | string;
+            /** Format: int32 */
+            expectedRevision?: null | number;
+        };
+        TechnicianOption: {
+            /** Format: uuid */
+            id: string;
+            displayName: string;
+            isActive: boolean;
+        };
         ValidationProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -582,12 +858,26 @@ export interface components {
             slaAtRiskAt: string;
             /** Format: date-time */
             slaDeadlineAt: string;
-            slaState: components["schemas"]["SlaState"];
+            slaState: null | components["schemas"]["SlaState"];
             /** Format: int32 */
             revision: number;
             /** Format: date-time */
             evaluatedAt: string;
+            /** Format: uuid */
+            technicianId: null | string;
+            technicianName: null | string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: null | string;
+            /** Format: date-time */
+            cancelledAt: null | string;
+            holdReason: null | string;
+            resolutionSummary: null | string;
+            cancellationReason: null | string;
         };
+        /** @enum {unknown} */
+        WorkOrderEventType: "Created" | "Assigned" | "Reassigned" | "Unassigned" | "DetailsCorrected" | "Started" | "PlacedOnHold" | "Resumed" | "Completed" | "Cancelled";
         WorkOrderPage: {
             items: components["schemas"]["WorkOrderSummary"][];
             /** Format: int32 */
@@ -600,7 +890,7 @@ export interface components {
             evaluatedAt: string;
         };
         /** @enum {unknown} */
-        WorkOrderStatus: "New";
+        WorkOrderStatus: "New" | "Assigned" | "InProgress" | "OnHold" | "Completed" | "Cancelled";
         WorkOrderSummary: {
             /** Format: uuid */
             id: string;
@@ -615,7 +905,10 @@ export interface components {
             serviceType: components["schemas"]["ServiceType"];
             priority: components["schemas"]["Priority"];
             status: components["schemas"]["WorkOrderStatus"];
-            slaState: components["schemas"]["SlaState"];
+            /** Format: uuid */
+            technicianId?: null | string;
+            technicianName?: null | string;
+            slaState: null | components["schemas"]["SlaState"];
             /** Format: date-time */
             deadline: string;
             /** Format: date-time */

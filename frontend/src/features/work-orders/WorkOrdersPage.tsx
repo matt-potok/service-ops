@@ -1,9 +1,10 @@
+import { statusLabels } from './statusLabels'
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Chip, Collapse, FormControlLabel, Checkbox, LinearProgress, Paper, Stack, TextField, Typography, useMediaQuery } from '@mui/material'
+import { Alert, Box, Button, Chip, Collapse, FormControlLabel, Checkbox, LinearProgress, Paper, Stack, MenuItem, TextField, Typography, useMediaQuery } from '@mui/material'
 import { DataGrid, type GridColDef, type GridSortModel } from '@mui/x-data-grid'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useSearchParams } from 'react-router'
-import { getCreationOptions, getCustomers, getLocations, getWorkOrders, WorkOrderApiError, type WorkOrderSummary } from './api'
+import { getCreationOptions, getCustomers, getLocations, getTechnicians, getWorkOrders, WorkOrderApiError, type WorkOrderSummary } from './api'
 import { changeQueueParams, readQueueState } from './queueState'
 
 const slaLabels = { Good: 'Good', AtRisk: 'At risk', Breached: 'Breached' } as const
@@ -24,6 +25,7 @@ export function WorkOrdersPage() {
   const sortModel = useMemo<GridSortModel>(() => [{ field: state.sort.replace(/^-/, ''), sort: state.sort.startsWith('-') ? 'desc' : 'asc' }], [state.sort])
   const paginationModel = useMemo(() => ({ page: state.page - 1, pageSize: state.pageSize }), [state.page, state.pageSize])
   const customers = useQuery({ queryKey: ['customers'], queryFn: ({ signal }) => getCustomers(signal) })
+  const technicians = useQuery({ queryKey: ['technicians'], queryFn: ({ signal }) => getTechnicians(signal) })
   const options = useQuery({ queryKey: ['creation-options'], queryFn: ({ signal }) => getCreationOptions(signal) })
   const locations = useQuery({ queryKey: ['locations', state.customerId], queryFn: ({ signal }) => getLocations(state.customerId, signal), enabled: !!state.customerId })
   const orders = useQuery({ queryKey: ['work-orders', queryString], queryFn: ({ signal }) => getWorkOrders(queryString, signal), placeholderData: keepPreviousData, refetchInterval: 60_000 })
@@ -49,15 +51,16 @@ export function WorkOrdersPage() {
     { field: 'number', headerName: 'Work order', width: 290, renderCell: ({ row, tabIndex }) => <Box className="queue-identity"><Link tabIndex={tabIndex} to={`/work-orders/${row.id}`} state={{ returnTo }}>{row.number}</Link><span title={row.title}>{row.title}</span></Box> },
     { field: 'customerName', headerName: 'Customer / location', width: 245, renderCell: ({ row }) => <Box className="queue-identity"><span title={row.customerName}>{row.customerName}</span><small title={row.locationName}>{row.locationName}</small></Box> },
     { field: 'priority', headerName: 'Priority', width: 105, renderCell: ({ row }) => <Chip size="small" variant="outlined" label={row.priority} color={row.priority === 'Critical' ? 'error' : row.priority === 'High' ? 'warning' : 'default'} /> },
-    { field: 'status', headerName: 'Status', width: 85, renderCell: ({ row }) => <Chip size="small" label={row.status} variant="outlined" /> },
-    { field: 'slaState', headerName: 'SLA', width: 100, sortable: false, renderCell: ({ row }) => <Chip size="small" label={slaLabels[row.slaState]} color={slaColors[row.slaState]} variant="outlined" /> },
+    { field: 'status', headerName: 'Status', width: 125, renderCell: ({ row }) => <Chip size="small" label={statusLabels[row.status]} variant="outlined" /> },
+    { field: 'slaState', headerName: 'SLA', width: 100, sortable: false, renderCell: ({ row }) => <Chip size="small" label={row.slaState ? slaLabels[row.slaState] : '—'} color={row.slaState ? slaColors[row.slaState] : 'default'} variant="outlined" /> },
     { field: 'deadline', headerName: 'Deadline', width: 170, valueFormatter: value => dateLabel(value as string) },
     { field: 'serviceType', headerName: 'Service', width: 150, sortable: false, valueFormatter: value => value === 'GeneralMaintenance' ? 'General Maintenance' : value },
     { field: 'createdAt', headerName: 'Created', width: 170, valueFormatter: value => dateLabel(value as string) },
+    { field: 'technicianName', headerName: 'Technician', width: 180, sortable: false, valueFormatter: value => value ?? 'Unassigned' },
     ]
     if (compact) {
       fields[0].width = 240
-      return [fields[0], fields[2], fields[4], fields[5], fields[1], fields[3], fields[6], fields[7]]
+      return [fields[0], fields[2], fields[4], fields[5], fields[1], fields[3], fields[8], fields[6], fields[7]]
     }
     return fields
   }, [returnTo, compact])
@@ -70,6 +73,9 @@ export function WorkOrdersPage() {
     if (key === 'customerId') return `Customer: ${customers.data?.find(x => x.id === value)?.name ?? value}`
     if (key === 'locationId') return `Location: ${locations.data?.find(x => x.id === value)?.name ?? value}`
     if (key === 'slaStatus') return `SLA: ${slaLabels[value as keyof typeof slaLabels] ?? value}`
+    if (key === 'technicianId') return "Technician: " + (technicians.data?.find(x => x.id === value)?.displayName ?? value)
+    if (key === 'unassigned') return value === 'true' ? 'Unassigned only' : 'Assigned only'
+    if (key === 'status') return 'Status: ' + (statusLabels[value as keyof typeof statusLabels] ?? value)
     if (key === 'openOnly') return 'Open only'
     return `${({ search: 'Search', serviceType: 'Service', status: 'Status', createdFrom: 'Created from', createdTo: 'Created before' } as Record<string, string>)[key] ?? key}: ${value}`
   }
@@ -96,10 +102,18 @@ export function WorkOrdersPage() {
         <TextField size="small" select label="Service type" value={state.serviceType} onChange={e => change({ serviceType: e.target.value })} slotProps={selectionProps}>
           <option value="">All services</option>{options.data?.serviceTypes.map(x => <option key={x.code} value={x.code}>{x.label}</option>)}
         </TextField>
-        <TextField size="small" select label="Status" value={state.status[0] ?? ''} onChange={e => change({ status: e.target.value })} slotProps={selectionProps}><option value="">All statuses</option><option value="New">New</option></TextField>
+        <TextField size="small" select label="Status" value={state.status} slotProps={{ inputLabel: { shrink: true }, select: { multiple: true, displayEmpty: true, renderValue: value => (value as (keyof typeof statusLabels)[]).map(status => statusLabels[status] ?? status).join(', ') || 'All statuses' } }} onChange={e => {
+          const values = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value as string[]
+          const next = changeQueueParams(params, { status: '', ...(search !== state.search ? { search: search.trim() } : {}) })
+          values.forEach(value => next.append('status', value)); setParams(next)
+        }}>{Object.entries(statusLabels).map(([value, label]) => <MenuItem key={value} value={value}><Checkbox checked={state.status.includes(value)} />{label}</MenuItem>)}</TextField>
+        <TextField size="small" select label="Technician" value={state.technicianId || (state.unassigned === 'true' ? 'unassigned' : state.unassigned === 'false' ? 'assigned' : '')} onChange={e => change({ technicianId: ['unassigned', 'assigned'].includes(e.target.value) ? '' : e.target.value, unassigned: e.target.value === 'unassigned' ? 'true' : e.target.value === 'assigned' ? 'false' : '' })} slotProps={selectionProps}>
+          <option value="">All technicians</option><option value="unassigned">Unassigned only</option><option value="assigned">Assigned only</option>{technicians.data?.map(x => <option key={x.id} value={x.id}>{x.displayName}{x.isActive ? '' : ' (inactive)'}</option>)}
+          {state.technicianId && !technicians.data?.some(x => x.id === state.technicianId) && <option value={state.technicianId}>Technician from URL: {state.technicianId}</option>}
+        </TextField>
         <TextField size="small" select label="SLA status" value={state.slaStatus} onChange={e => change({ slaStatus: e.target.value })} slotProps={selectionProps}><option value="">All SLA states</option>{Object.entries(slaLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</TextField>
       </div>
-      {(customers.isError || options.isError || (state.customerId && locations.isError)) && <Alert severity="warning" sx={{ mt: 2 }} action={<Button onClick={() => { void customers.refetch(); void options.refetch(); if (state.customerId) void locations.refetch() }}>Retry</Button>}>Some filter options could not be loaded.</Alert>}
+      {(customers.isError || technicians.isError || options.isError || (state.customerId && locations.isError)) && <Alert severity="warning" sx={{ mt: 2 }} action={<Button onClick={() => { void customers.refetch(); void technicians.refetch(); void options.refetch(); if (state.customerId) void locations.refetch() }}>Retry</Button>}>Some filter options could not be loaded.</Alert>}
       <Collapse in={moreFilters}>
         <Box className="queue-secondary" sx={{ pt: 2.5 }}>
           <TextField size="small" type="datetime-local" label="Created from (inclusive, UTC)" value={utcInput(state.createdFrom)} onChange={e => change({ createdFrom: utcValue(e.target.value) })} slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: 1 } }} />
@@ -108,7 +122,12 @@ export function WorkOrdersPage() {
         </Box>
       </Collapse>
       {hasFilters && <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1, mt: 2 }} aria-label="Active filters">
-        {filterEntries.map(([key, value], index) => <Chip key={`${key}-${index}`} size="small" label={chipLabel(key, value)} onDelete={() => change({ [key]: '' })} sx={{ maxWidth: '100%' }} />)}
+        {filterEntries.map(([key, value], index) => <Chip key={`${key}-${index}`} size="small" label={chipLabel(key, value)} onDelete={() => {
+          if (key === 'status') {
+            const next = changeQueueParams(params, search !== state.search ? { search: search.trim() } : {})
+            next.delete('status', value); setParams(next)
+          } else change({ [key]: '' })
+        }} sx={{ maxWidth: '100%' }} />)}
         <Button size="small" onClick={clear} sx={{ minHeight: 28 }}>Clear filters</Button>
       </Stack>}
     </Paper>

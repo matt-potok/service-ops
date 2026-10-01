@@ -11,6 +11,9 @@ namespace ServiceOps.Api.Features.ReferenceData;
 [Authorize(Policy = "Operations")]
 public sealed class ReferenceDataController(ServiceOpsDbContext database) : ControllerBase
 {
+    [HttpGet("technicians")]
+    public Task<TechnicianOption[]> Technicians(CancellationToken cancellationToken) => database.Technicians.AsNoTracking()
+        .OrderBy(x => x.DisplayName).Select(x => new TechnicianOption(x.Id, x.DisplayName, x.IsActive)).ToArrayAsync(cancellationToken);
     [HttpGet("customers")]
     public Task<CustomerOption[]> Customers(CancellationToken cancellationToken) => database.Customers.AsNoTracking()
         .Where(x => x.IsActive).OrderBy(x => x.Name).Select(x => new CustomerOption(x.Id, x.Name)).ToArrayAsync(cancellationToken);
@@ -27,6 +30,7 @@ public sealed class ReferenceDataController(ServiceOpsDbContext database) : Cont
 }
 
 public sealed record CustomerOption(Guid Id, string Name);
+public sealed record TechnicianOption(Guid Id, string DisplayName, bool IsActive);
 public sealed record LocationOption(Guid Id, string Name, string Address);
 public sealed record ServiceOption(ServiceType Code, string Label);
 public sealed record PriorityOption(Priority Code, string Label, int SlaDurationMinutes);

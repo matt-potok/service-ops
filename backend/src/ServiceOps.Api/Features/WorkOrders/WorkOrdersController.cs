@@ -53,7 +53,7 @@ public sealed class WorkOrdersController(ServiceOpsDbContext database, TimeProvi
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<WorkOrderDetail>> Get(Guid id, CancellationToken cancellationToken)
     {
-        var order = await database.WorkOrders.AsNoTracking().Include(x => x.Location).ThenInclude(x => x.Customer)
+        var order = await database.WorkOrders.AsNoTracking().Include(x => x.Technician).Include(x => x.Location).ThenInclude(x => x.Customer)
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
         return order is null ? NotFound() : WorkOrderDetail.From(order, clock.GetUtcNow());
     }
@@ -69,11 +69,14 @@ public sealed record WorkOrderDetail(Guid Id, string Number, string Title, strin
     Guid CustomerId, string CustomerName, Guid LocationId, string LocationName, string LocationAddress,
     ServiceType ServiceType, Priority Priority, WorkOrderStatus Status, DateTimeOffset CreatedAt,
     Guid CreatedByUserId, int SlaDurationMinutes, DateTimeOffset SlaAtRiskAt, DateTimeOffset SlaDeadlineAt,
-    SlaState SlaState, int Revision, DateTimeOffset EvaluatedAt)
+    SlaState? SlaState, int Revision, DateTimeOffset EvaluatedAt,
+    Guid? TechnicianId, string? TechnicianName, DateTimeOffset UpdatedAt, DateTimeOffset? CompletedAt,
+    DateTimeOffset? CancelledAt, string? HoldReason, string? ResolutionSummary, string? CancellationReason)
 {
     public static WorkOrderDetail From(WorkOrder order, DateTimeOffset evaluatedAt) => new(
         order.Id, order.Number, order.Title, order.Description, order.Location.CustomerId, order.Location.Customer.Name,
         order.LocationId, order.Location.Name, order.Location.Address, order.ServiceType, order.Priority, order.Status,
         order.CreatedAt, order.CreatedByUserId, order.SlaDurationMinutes, order.SlaAtRiskAt, order.SlaDeadlineAt,
-        order.GetSlaState(evaluatedAt), order.Revision, evaluatedAt);
+        order.GetSlaState(evaluatedAt), order.Revision, evaluatedAt, order.TechnicianId, order.Technician?.DisplayName,
+        order.UpdatedAt, order.CompletedAt, order.CancelledAt, order.HoldReason, order.ResolutionSummary, order.CancellationReason);
 }

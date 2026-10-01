@@ -20,9 +20,9 @@ public sealed class WorkOrderListController(ServiceOpsDbContext database, TimePr
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<WorkOrderPage>> List([FromQuery] WorkOrderListRequest request, CancellationToken cancellationToken)
     {
-        // Do not silently pretend that assignment/completion fields already exist.
+        // Reject unsupported filters rather than silently ignoring them.
         string[] supported = ["search", "customerId", "locationId", "serviceType", "status", "slaStatus",
-            "createdFrom", "createdTo", "openOnly", "sort", "page", "pageSize"];
+            "technicianId", "unassigned", "createdFrom", "createdTo", "openOnly", "sort", "page", "pageSize"];
         foreach (var key in Request.Query.Keys)
             if (!supported.Contains(key, StringComparer.OrdinalIgnoreCase))
                 ModelState.AddModelError(key, "This filter is not supported by the current work-order model.");
@@ -34,8 +34,10 @@ public sealed class WorkOrderListController(ServiceOpsDbContext database, TimePr
                 ModelState.AddModelError(key, "Use an ISO timestamp with Z or an explicit UTC offset.");
         if (request.CustomerId == Guid.Empty || request.LocationId == Guid.Empty) ModelState.AddModelError("locationId", "Use a valid customer or location ID.");
         if (request.ServiceType.HasValue && !Enum.IsDefined(request.ServiceType.Value)) ModelState.AddModelError("serviceType", "Choose a valid service type.");
-        if (request.Status.Any(status => !Enum.IsDefined(status))) ModelState.AddModelError("status", "Choose a currently supported status (New).");
+        if (request.Status.Any(status => !Enum.IsDefined(status))) ModelState.AddModelError("status", "Choose a valid workflow status.");
         if (request.SlaStatus.HasValue && !Enum.IsDefined(request.SlaStatus.Value)) ModelState.AddModelError("slaStatus", "Choose Good, AtRisk, or Breached.");
+        if (request.TechnicianId == Guid.Empty) ModelState.AddModelError("technicianId", "Use a valid technician ID.");
+        if (request.TechnicianId.HasValue && request.Unassigned == true) ModelState.AddModelError("unassigned", "Choose a technician or unassigned, not both.");
         var sort = request.Sort ?? "-createdAt";
         string[] sorts = ["number", "createdAt", "deadline", "priority", "status", "customerName"];
         if (!sorts.Contains(sort.TrimStart('-')) || sort.StartsWith("--")) ModelState.AddModelError("sort", "Choose number, createdAt, deadline, priority, status, or customerName; prefix - for descending.");
@@ -52,10 +54,13 @@ public sealed class WorkOrderListController(ServiceOpsDbContext database, TimePr
         }
         if (request.CustomerId.HasValue) orders = orders.Where(x => x.Location.CustomerId == request.CustomerId);
         if (request.LocationId.HasValue) orders = orders.Where(x => x.LocationId == request.LocationId);
+        if (request.TechnicianId.HasValue) orders = orders.Where(x => x.TechnicianId == request.TechnicianId);
+        if (request.Unassigned == true) orders = orders.Where(x => x.TechnicianId == null);
+        if (request.Unassigned == false) orders = orders.Where(x => x.TechnicianId != null);
         if (request.ServiceType.HasValue) orders = orders.Where(x => x.ServiceType == request.ServiceType);
         if (request.Status.Length > 0) orders = orders.Where(x => request.Status.Contains(x.Status));
-        // New is the only open status implemented so far. Expand with the workflow phase.
-        if (request.OpenOnly == true) orders = orders.Where(x => x.Status == WorkOrderStatus.New);
+        // Completed and Cancelled are terminal.
+        if (request.OpenOnly == true) orders = orders.Where(x => x.Status != WorkOrderStatus.Completed && x.Status != WorkOrderStatus.Cancelled);
         if (request.CreatedFrom.HasValue) { var from = request.CreatedFrom.Value.ToUniversalTime(); orders = orders.Where(x => x.CreatedAt >= from); }
         if (request.CreatedTo.HasValue) { var to = request.CreatedTo.Value.ToUniversalTime(); orders = orders.Where(x => x.CreatedAt < to); }
 
@@ -67,7 +72,8 @@ public sealed class WorkOrderListController(ServiceOpsDbContext database, TimePr
             CustomerName = x.Location.Customer.Name, LocationId = x.LocationId, LocationName = x.Location.Name,
             ServiceType = x.ServiceType, Priority = x.Priority, Status = x.Status,
             CreatedAt = x.CreatedAt, Deadline = x.SlaDeadlineAt,
-            SlaState = evaluatedAt >= x.SlaDeadlineAt ? SlaState.Breached : evaluatedAt >= x.SlaAtRiskAt ? SlaState.AtRisk : SlaState.Good
+            TechnicianId = x.TechnicianId, TechnicianName = x.Technician == null ? null : x.Technician.DisplayName,
+            SlaState = x.Status == WorkOrderStatus.Completed || x.Status == WorkOrderStatus.Cancelled ? null : evaluatedAt >= x.SlaDeadlineAt ? SlaState.Breached : evaluatedAt >= x.SlaAtRiskAt ? SlaState.AtRisk : SlaState.Good
         });
         if (request.SlaStatus.HasValue) rows = rows.Where(x => x.SlaState == request.SlaStatus);
         var total = await rows.CountAsync(cancellationToken);
@@ -93,6 +99,8 @@ public sealed class WorkOrderListRequest
     [MaxLength(200)] public string? Search { get; init; }
     public Guid? CustomerId { get; init; }
     public Guid? LocationId { get; init; }
+    public Guid? TechnicianId { get; init; }
+    public bool? Unassigned { get; init; }
     public ServiceType? ServiceType { get; init; }
     public WorkOrderStatus[] Status { get; init; } = [];
     public SlaState? SlaStatus { get; init; }
@@ -117,7 +125,9 @@ public sealed record WorkOrderSummary
     public required ServiceType ServiceType { get; init; }
     public required Priority Priority { get; init; }
     public required WorkOrderStatus Status { get; init; }
-    public required SlaState SlaState { get; init; }
+    public Guid? TechnicianId { get; init; }
+    public string? TechnicianName { get; init; }
+    public required SlaState? SlaState { get; init; }
     public required DateTimeOffset Deadline { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
 }

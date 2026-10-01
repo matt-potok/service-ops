@@ -98,7 +98,7 @@ public sealed partial class WorkOrderApiTests
     [InlineData("sort=description")]
     [InlineData("sort=--priority")]
     [InlineData("serviceType=Unknown")]
-    [InlineData("status=Completed")]
+    [InlineData("status=Unsupported")]
     [InlineData("status=99")]
     [InlineData("slaStatus=Unknown")]
     [InlineData("customerId=bad")]
@@ -106,7 +106,7 @@ public sealed partial class WorkOrderApiTests
     [InlineData("createdFrom=2026-09-29")]
     [InlineData("createdFrom=2026-09-30T00:00:00Z&createdTo=2026-09-29T00:00:00Z")]
     [InlineData("technicianId=00000003-0000-0000-0000-000000000001&unassigned=true")]
-    [InlineData("unassigned=false")]
+    [InlineData("unassigned=invalid")]
     [InlineData("completedFrom=2026-09-29T00:00:00Z")]
     [InlineData("attentionOnly=true")]
     public async Task List_rejects_invalid_or_not_yet_supported_filters(string query)

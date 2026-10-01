@@ -8,6 +8,7 @@ import { getWorkOrders } from './api'
 
 vi.mock('./api', async importOriginal => ({
   ...await importOriginal<typeof import('./api')>(),
+  getTechnicians: async () => [{ id: 'tech', displayName: 'Alex Reed', isActive: true }],
   getCustomers: async () => [{ id: 'harbor', name: 'Harborstone Logistics' }, { id: 'cedar', name: 'Cedar Vale Offices' }],
   getLocations: async (id: string) => [{ id: `${id}-site`, name: `${id} campus` }],
   getCreationOptions: async () => ({ serviceTypes: [{ code: 'HVAC', label: 'HVAC' }], priorities: [] }),
@@ -86,5 +87,22 @@ it('keeps page two through unrelated renders of the real grid', async () => {
   expect(screen.getByLabelText('URL').textContent).toBe('?page=2&sort=priority')
   fireEvent.click(screen.getByRole('button', { name: 'History forward' }))
   await screen.findByText('1–3 of 3')
+  client.clear()
+})
+
+
+it('preserves multiple statuses and switches assignment filters without contradictions', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/work-orders?status=New&status=OnHold&unassigned=true&page=2']}><HistoryControls /><WorkOrdersPage /></MemoryRouter></QueryClientProvider>)
+  await screen.findByRole('option', { name: 'Alex Reed' })
+  expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('New, On hold')
+  fireEvent.change(screen.getByRole('combobox', { name: 'Technician' }), { target: { value: 'tech' } })
+  await waitFor(() => expect(screen.getByLabelText('URL').textContent).toContain('technicianId=tech'))
+  expect(screen.getByLabelText('URL').textContent).toContain('status=New&status=OnHold')
+  expect(screen.getByLabelText('URL').textContent).not.toContain('unassigned=')
+  expect(screen.getByLabelText('URL').textContent).not.toContain('page=')
+  fireEvent.click(screen.getByRole('button', { name: 'History back' }))
+  await waitFor(() => expect((screen.getByRole('combobox', { name: 'Technician' }) as HTMLSelectElement).value).toBe('unassigned'))
+  expect(screen.getByLabelText('URL').textContent).toContain('page=2')
   client.clear()
 })

@@ -1,6 +1,6 @@
 # ServiceOps — Initial Architecture Proposal
 
-Status: Approved. Phases 1–2 accepted; Phase 3 implemented for review September 29, 2026. Phase 4 and later remain outside the current implementation scope.
+Status: Approved. Phases 1–3 accepted; Phase 4 implemented for review October 1, 2026. Phase 5 and later remain outside the current implementation scope.
 
 Prepared: September 28, 2026. Organization: Atlas Facility Services.
 
@@ -16,7 +16,7 @@ Billing, payments, customer portals, technician mobile applications, SMS, mappin
 
 ## 2. Decisions and working assumptions
 
-The review decisions are incorporated below. Unchanged business defaults remain documented assumptions. Phase 3 is the current implementation boundary; later phases remain deferred.
+The review decisions are incorporated below. Unchanged business defaults remain documented assumptions. Phase 4 is the current implementation boundary; later phases remain deferred.
 
 | Topic | Proposed default and consequence |
 | --- | --- |
@@ -310,4 +310,4 @@ Create these as Proposed records, then mark Accepted only after architecture app
 
 The September 29 review preserves the modular monolith, direct EF Core, explicit domain rules, Current Operations/Period Performance distinction, and deterministic approximately 750-order dataset. It replaces HTTP preconditions with simple revision conflicts, allows open-order priority changes, reduces monitoring to periodic observations, and narrows test scope to valuable business behavior and critical integrations.
 
-Keep 24/7 resolution targets, the proposed reporting time zone, single-technician assignment, append-only notes, and no reopening as documented working defaults. No additional platform capabilities are implied. IMPLEMENTATION.md defines small vertical phases with review and commit boundaries. Phases 1–2 are accepted. Phase 3 is implemented for review; its results and scoped limitations are recorded in PHASE3_REVIEW.md. Stop for review before Phase 4.
+Keep 24/7 resolution targets, the proposed reporting time zone, single-technician assignment, append-only notes, and no reopening as documented working defaults. No additional platform capabilities are implied. IMPLEMENTATION.md defines small vertical phases with review and commit boundaries. Phases 1–3 are accepted. Phase 4 is implemented for review; its results and scoped limitations are recorded in PHASE4_REVIEW.md. Stop for review before Phase 5.

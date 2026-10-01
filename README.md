@@ -1,6 +1,6 @@
 # ServiceOps
 
-Atlas Facility Services' internal application. **Phases 1–3:** seeded sign-in, work-order creation/detail with server-calculated SLA deadlines, and a searchable operations queue. Phase 4 has not started. See [Phase 3 review](PHASE3_REVIEW.md) for implementation details and verification.
+Atlas Facility Services' internal application. **Phases 1–4:** seeded sign-in, creation and searchable queue, assignment, workflow, editable details, concurrency conflicts and activity history. Phase 4 is ready for review; Phase 5 has not started. See [Phase 4 review](PHASE4_REVIEW.md) for verification.
 
 ## Run with Docker Compose
 
@@ -116,11 +116,11 @@ backend/
   src/ServiceOps.Api/
     Features/Auth/       # Four auth endpoints and their DTOs
     Identity/            # ApplicationUser
-    Features/WorkOrders/ # Create/detail endpoints and DTOs
-    Features/ReferenceData/ # Customer/location and creation-option lookups
+    Features/WorkOrders/ # Create, queue, detail, mutations and activity endpoints
+    Features/ReferenceData/ # Customer/location/technician and creation-option lookups
     Persistence/         # DbContext, mappings, migrations, user/reference seed
     Program.cs           # Configuration, middleware, commands, health
-  src/ServiceOps.Domain/ # Reference entities, WorkOrder creation and SLA rules
+  src/ServiceOps.Domain/ # Reference entities, WorkOrder lifecycle and SLA rules
   tests/ServiceOps.Domain.Tests/
   tests/ServiceOps.Api.IntegrationTests/
 frontend/
@@ -144,7 +144,7 @@ No generic repositories, MediatR, unit-of-work wrapper, event bus, Redis, or fut
 | EF Core Design / dotnet-ef 10.0.12 | Generate the checked-in migrations. Design tooling is private to the project. |
 | MVC Testing, Microsoft.NET.Test.Sdk, xUnit and runner | Real application integration tests against PostgreSQL. |
 | React 19.3 / React DOM | Login, account, creation, and detail screens. |
-| Material UI 9.4 with Emotion | Form, account card, feedback, and theme styling. No grid/chart package yet. |
+| Material UI 9.4 with Emotion | Form, account card, feedback, and theme styling. MUI X Data Grid Community 9.14 supplies the queue. No chart package. |
 | React Router 8.4 | Authenticated home/create/detail routes and not-found routing. |
 | TanStack Query 5.104 | Session/reference/detail loading and sign-in/out/create mutation state. |
 | Vite 8.3 / React plugin / TypeScript 5.9 | Development server, build, and static checking. TS 5.9 satisfies the generator's peer constraint. |
@@ -152,7 +152,7 @@ No generic repositories, MediatR, unit-of-work wrapper, event bus, Redis, or fut
 
 Exact versions and transitive dependencies are locked in NuGet/npm lockfiles. Passwords/cookies/request bodies are not logged. JSON console logs contain request method/path/status/duration and trace ID. Login is limited to 10 attempts/minute per remote address, with Identity lockout after five failures per user. The local Vite proxy means browser clients share a backend remote address; this is adequate for the local single-user demonstration.
 
-Local form state and explicit validation cover the current fields; no form framework is needed. Both roles can create and inspect work orders. Vitest 5.0.2, Testing Library React 16.3.3/DOM 10.4.2, and jsdom 30.1.1 are development-only dependencies for the focused customer/location component test. No new runtime package was needed.
+Local form state and explicit validation cover the current fields; no form framework is needed. Both roles can create and inspect work orders. Vitest 5.0.2, Testing Library React 16.3.3/DOM 10.4.2, and jsdom 30.1.1 are development-only dependencies for focused creation, queue, workflow-action and conflict-UX component tests. No new runtime package was needed.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md), [IMPLEMENTATION.md](IMPLEMENTATION.md), and [Phase 1 review](PHASE1_REVIEW.md) for scope, acceptance criteria, actual verification, and limitations.
 
@@ -170,7 +170,7 @@ When upgrading an existing Phase 1 checkout, preserve `.env` and its database vo
 
 Open **Work orders** in the workspace navigation. Search title/number, combine customer/location/service/status/SLA filters, sort the grid, and choose 25/50/100 rows per page. More filters exposes inclusive/exclusive created-time inputs in UTC and Open only. Other displayed timestamps use the named browser time zone. Filters, sort and page live in the URL; refresh and browser Back/Forward preserve them. Use the work-order number link to open detail, then **Back to work orders** to restore the queue URL.
 
-New is the only current workflow status. Technician/assignment, completed-date and attention filters are intentionally unavailable until their domain behavior exists. The API rejects these parameters instead of silently ignoring them. There are no workflow mutations or assignment controls in this phase.
+Phase 4 extends the queue with all six workflow statuses, multi-select status filters, technician and assigned/unassigned filters. Open only covers New, Assigned, InProgress and OnHold. Completed-date and attention filters remain deferred and are rejected by the API.
 
 The only new runtime dependency is MIT-licensed MUI X Data Grid Community 9.14.0. Pagination, single-column sorting and filtering are server-side. No Pro package or paid feature is used. Existing test tooling is unchanged.
 
@@ -193,3 +193,17 @@ docker compose --profile tools run --rm -e QueueFixture__AnchorUtc=2026-09-30T01
 ```
 
 No new schema migration is required for Phase 3. See `PHASE3_REVIEW.md` for exact API semantics and query/index review.
+
+## Phase 4 workflow review
+
+Apply the new migration using the existing `--migrate` command (or `docker compose up --build -d`). The migration preserves existing New orders and their creation activities; it initializes UpdatedAt from CreatedAt. Normal seed commands remain unchanged.
+
+As Operations or Manager, open a New order from the queue. Assign an active technician, start work, correct title/description, place it on hold with a reason, resume and complete with a summary. Review the Activity tab and return to the queue. A separate New order can be cancelled with a reason. Both terminal states reject further edits. Priority, customer, location and service type have no edit control.
+
+For a conflict review, open the same order in two tabs, open Edit details in the first and change its title. Save a different title in the second, then submit the first. The first tab loads the current data, retains its draft and requires explicit review before another save. No mutation is automatically retried.
+
+Mutation endpoints are `PATCH /api/v1/work-orders/{id}`, `PUT /api/v1/work-orders/{id}/assignment` and `POST /api/v1/work-orders/{id}/status-transitions`. They accept an optional positive `expectedRevision`; the UI always sends it. Stale revisions and database races return 409 `stale_revision`; invalid workflow actions return 409 `invalid_transition`. Details correction supplies title and description; assignment requires an explicit technicianId (or null). Status transitions supply targetStatus and the applicable reason or summary. Unknown properties are rejected.
+
+`GET /api/v1/work-orders/{id}/activity` returns `{ items, nextCursor }`, oldest first by effective timestamp and ID. Pass the opaque cursor on the next request; pageSize defaults to 25 and is limited to 1–100. `GET /api/v1/technicians` returns seeded names and active flags; inactive technicians remain filterable but cannot be assigned. No administration UI exists.
+
+Run the same backend tests, frontend typecheck/tests/build, and contract generation documented above. No dependencies were introduced in Phase 4. See `PHASE4_REVIEW.md` for the transition matrix, schema changes, checks and screenshots.

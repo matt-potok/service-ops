@@ -40,7 +40,11 @@ public sealed partial class WorkOrderApiTests : IAsyncLifetime
         {
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:ServiceOps", connection.ConnectionString);
-            builder.ConfigureTestServices(services => services.AddSingleton<TimeProvider>(clock));
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton<TimeProvider>(clock);
+                services.AddDbContext<ServiceOpsDbContext>(options => options.AddInterceptors(competingWrites));
+            });
         });
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ServiceOpsDbContext>();

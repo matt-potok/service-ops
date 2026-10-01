@@ -4,6 +4,7 @@ export function readQueueState(params: URLSearchParams) {
   const pageSize = Number(params.get('pageSize'))
   return {
     search: params.get('search') ?? '', customerId: params.get('customerId') ?? '',
+    technicianId: params.get('technicianId') ?? '', unassigned: params.get('unassigned') ?? '',
     locationId: params.get('locationId') ?? '', serviceType: params.get('serviceType') ?? '',
     status: params.getAll('status'), slaStatus: params.get('slaStatus') ?? '',
     createdFrom: params.get('createdFrom') ?? '', createdTo: params.get('createdTo') ?? '',
