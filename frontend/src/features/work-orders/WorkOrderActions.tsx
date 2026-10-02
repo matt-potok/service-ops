@@ -30,6 +30,7 @@ export function WorkOrderActions({ detail }: { detail: WorkOrderDetail }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['work-order', detail.id] }),
         queryClient.invalidateQueries({ queryKey: ['work-orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
         queryClient.invalidateQueries({ queryKey: ['work-order-activity', detail.id] }),
       ])
     },

@@ -1,6 +1,6 @@
 # ServiceOps — Architecture
 
-Status: Phases 1–4 accepted. Remaining scope revised October 2, 2026: Phase 5 delivers portfolio demo data; Phase 6 will deliver the Manager Dashboard. Priority changes, notes and the SLA background worker are deferred indefinitely unless explicitly requested.
+Status: Phases 1–5 accepted. Phase 6 implements the focused Manager Dashboard requested October 2, 2026. Priority changes, notes and the SLA background worker are deferred indefinitely unless explicitly requested.
 
 Prepared: September 28, 2026. Organization: Atlas Facility Services.
 
@@ -16,7 +16,7 @@ Billing, payments, customer portals, technician mobile applications, SMS, mappin
 
 ## 2. Decisions and working assumptions
 
-The review decisions are incorporated below. Unchanged business defaults remain documented assumptions. Revised Phase 5 (demo data) is the current implementation boundary; later phases remain deferred.
+The review decisions are incorporated below. Unchanged business defaults remain documented assumptions. Phase 6 (Manager Dashboard) is the current implementation boundary; later phases remain deferred.
 
 | Topic | Proposed default and consequence |
 | --- | --- |
@@ -28,7 +28,7 @@ The review decisions are incorporated below. Unchanged business defaults remain 
 | Changes after creation | Title and description may change while open. Customer, location, service type and priority remain immutable. Priority changes and SLA recalculation are deferred indefinitely. |
 | Notes and history | Append-only activity records assignment, corrections and workflow. Notes are deferred indefinitely. No activity editing, attachments or rich text. |
 | Identity | ASP.NET Core Identity and two server-enforced roles: Operations and Manager, with seeded demo users for each. Registration, account administration, password-reset UI, SSO, and complex authorization are outside scope. |
-| Time zone | One configurable organization reporting zone, initially proposed as America/New_York; this is a business assumption to confirm. UTC storage throughout. |
+| Time zone | The dashboard uses the fixed America/New_York reporting calendar; UTC storage throughout. No timezone administration UI. |
 | Scale | The fictional business has roughly 150 locations; the initial 50-location seed is a representative subset, not its complete estate. |
 | Reference data | Customers, locations, and technicians are seeded/read-only initially; administration screens are outside the requested workflow. Inactive records remain available on historical orders. |
 
@@ -99,7 +99,7 @@ frontend/
     app/                # Router, providers, layout, theme
     features/
       auth/
-      dashboard/        # Filters, KPI cards, charts, attention table
+      dashboard/        # Current workload and completion-period summaries
       work-orders/      # List, create form, detail, workflow actions
       reference-data/   # Cached customer/location/technician lookups
     components/         # Shared status badges, page states, dialogs
@@ -112,11 +112,11 @@ frontend/
 
 Recommend Material UI Core and MUI X Data Grid Community. Their visual consistency and table capabilities suit an internal operations platform. Community is MIT-licensed; advanced grid capabilities have commercial tiers. Use a dedicated business-filter toolbar and server-side filtering, single-column sorting, and page sizes of 25, 50, or 100. Do not depend on Pro multi-sort, grid multi-filter UI, or paid export features. Revisit licensing only if those become actual requirements. [MUI grid](https://mui.com/x/react-data-grid), [licensing](https://mui.com/x/introduction/licensing/).
 
-Recommend Recharts for the trend and categorical charts: its composable React/SVG model fits the small chart set and it uses the MIT license. Supply tabular equivalents and keyboard-accessible drill-through links; a chart library alone does not ensure accessibility. [Recharts](https://github.com/recharts/recharts).
+Use existing Material UI cards, status summaries and workload bars for the focused dashboard. No charting dependency is needed. Trends, created-cohort charts and attention tables are outside the current Phase 6 scope.
 
 Use React Router for navigation, TanStack Query for server state, and React Hook Form with Zod for forms. Local React state handles dialogs and tabs; URL parameters own filters, sort, pagination, and detail tabs. No Redux initially. API validation remains authoritative. TanStack Query provides the server-state caching/invalidation model: [documentation](https://tanstack.com/query/latest/docs/framework/react/overview). Use stable, mutually compatible React/TypeScript/Vite versions and a supported Node LTS that satisfies Vite's engine requirements, pinned in lockfiles at implementation: [Vite guide](https://vite.dev/guide/).
 
-UI direction: restrained Atlas branding, compact spacing, readable typography, persistent navigation, clear page titles, visible filter chips, and consistent status/priority/SLA badges. Dashboard shows summary cards, trend, categorical breakdowns, then actionable work. Detail is a full route with Overview and Activity tabs. Creation can use a full-page form for tablet usability.
+UI direction: restrained Atlas branding, compact spacing, readable typography, persistent navigation, clear page titles, visible filter chips, and consistent status/priority/SLA badges. Dashboard separates current backlog/SLA/workload from completion-period outcomes and compliance. Detail is a full route with Overview and Activity tabs. Creation can use a full-page form for tablet usability.
 
 Customer changes clear the selected location. Disable location selection until a customer is chosen. Label every control, return focus after dialogs, expose errors inline, and announce save results. Use text/icons alongside color. Support keyboard navigation, reduced motion, sensible touch targets, and desktop/tablet layouts. Tables may scroll horizontally; important identity and action columns stay discoverable.
 
@@ -173,7 +173,7 @@ Use JSON under `/api/v1`, camelCase fields, ISO 8601 UTC timestamps, and explici
 | PUT /work-orders/{id}/assignment | Set technicianId or null using workflow rules; optional expectedRevision. |
 | POST /work-orders/{id}/status-transitions | Target status and required reason/summary; optional expectedRevision. |
 | GET /work-orders/{id}/activity | Cursor-paginated chronological activity. |
-| GET /dashboard | KPIs, buckets, breakdowns, attention preview, and evaluatedAt. |
+| GET /dashboard | Manager-only current backlog/status/SLA counts, open technician workload, completion-period outcomes/compliance, and evaluatedAt. |
 
 Example creation request:
 
@@ -188,7 +188,7 @@ Example creation request:
 }
 ```
 
-List query parameters: `search`, `customerId`, `locationId`, `technicianId`, `unassigned`, `serviceType`, repeated `status`, `slaStatus`, `createdFrom`, `createdTo`, `completedFrom`, `completedTo`, `attentionOnly`, `sort`, `page`, `pageSize`. Dates are inclusive start/exclusive end instants. `openOnly=true` expands to the four open statuses. All filter families combine with AND; repeated statuses combine with OR. Reject contradictory assignment filters and invalid enum values.
+List query parameters: `search`, `customerId`, `locationId`, `technicianId`, `unassigned`, `serviceType`, repeated `status`, `slaStatus`, `createdFrom`, `createdTo`, `sort`, `page`, `pageSize`. Dates are inclusive start/exclusive end instants. Completed-date and attention filters are deferred and rejected by the current queue API. `openOnly=true` expands to the four open statuses. All filter families combine with AND; repeated statuses combine with OR. Reject contradictory assignment filters and invalid enum values.
 
 Response envelope: `{ items, page, pageSize, totalCount, evaluatedAt }`. Default sorting is createdAt descending, with Id as a stable tie-breaker. Allowlist sortable fields such as number, createdAt, deadline, priority, status, and customerName. Use explicit priority ranks rather than alphabetical ordering. Search is bounded to 200 characters; page starts at 1 and pageSize is capped at 100. Offset pagination is appropriate initially; no claim of snapshot stability across concurrent inserts.
 
@@ -217,23 +217,19 @@ Never use a worker-updated status column as the authoritative current SLA state.
 
 Priority changes/SLA recalculation, notes and the SLA background worker (including threshold observation activity) are deferred indefinitely. They must not be implemented without an explicit later request. Existing SLA timestamps and policy/revision fields remain; live SLA reads depend only on persisted timestamps and current server time. No worker is required for correctness or demonstration seeding.
 
-## 9. Dashboard definitions and drill-throughs
+## 9. Dashboard definitions and existing queue links
 
-Do not let a recent date range hide old breached backlog. Divide the dashboard into clearly labeled **Current operations** and **Period performance** sections. Customer and service filters apply everywhere. The selected date range applies only to period performance; show this explicitly beside the current section. Default to the last 30 calendar days in the organization time zone, ending at the next local midnight. Convert boundaries to UTC; calendar-day durations can vary across daylight-saving changes.
+The October 2 Phase 6 request supersedes the earlier five-KPI/three-chart/attention-table plan. Build **Current Operations** and **Period Performance** without customer/service filters, trends, mean-resolution metrics, new queue predicates or charting dependencies. No worker or stored counters participates in reporting.
 
-| Metric/chart | Definition and destination |
-| --- | --- |
-| Open Work Orders | All currently open matching orders, regardless of creation date. Click -> openOnly. |
-| SLA At Risk | Open orders currently AtRisk. Click -> same SLA filter. |
-| SLA Breached | Open orders currently Breached. Click -> same SLA filter. |
-| Completed Work Orders | completedAt within the period. Click -> completedFrom/completedTo and Completed status. |
-| Average Resolution Time | Mean completedAt minus createdAt for those completions; elapsed hours, cancellations excluded. No completions -> em dash, not zero. Click -> that completed cohort. |
-| Created vs Completed | Two independent timestamp series within each period bucket. Complete zero-filled day buckets, or week buckets for wider ranges. Click -> corresponding created/completed bucket bounds. |
-| Work Orders by Status | Current status of orders created within the selected period; label as a created cohort, not historical end-of-period status. Click -> created range plus selected status. |
-| Work Orders by Service Type | Count created within the selected period by service type. Click -> created range plus selected service. |
-| Requiring Attention | Open and (AtRisk or Breached or unassigned). Top 10, breached first, then at risk, then unassigned; deadline ascending within each group. Click -> attentionOnly or a detail route. |
+Current Operations ignores the period and includes New, Assigned, InProgress and OnHold of any age. Show total open, each open status, and Good/AtRisk/Breached using section 8. Technician workload counts these same open orders by current technician, with unassigned shown separately even when zero. Technicians without open work are omitted; inactive technicians with open assignments remain represented. Status, SLA and workload totals each reconcile with open backlog.
 
-The attention union counts an order once. No percentage compliance KPI is required initially; do not confuse current breached backlog with completed-order compliance. Include sample counts with resolution averages. API queries and list predicates share definitions; integration tests prove each drill-through matches its metric on a fixed dataset/time. Historical backlog snapshots are not promised by this design.
+Period Performance selects **Completed** orders using `CompletedAt >= fromUtc && CompletedAt < toUtc`, regardless of CreatedAt. Cancelled work never contributes. Met means `CompletedAt <= SlaDeadlineAt`; Missed means later. Compliance is `100 * met / completed`, rounded to one decimal place. No completions means zero counts and null compliance, displayed as an em dash with a no-completions message.
+
+The API accepts both `startDate` and `endDateExclusive` as strict `yyyy-MM-dd` reporting-calendar dates, or neither. The UI displays an inclusive start and end and submits the day after its end. Boundaries are converted from America/New_York midnights into UTC on the server, so DST days can contain 23 or 25 hours. Default: the last 30 calendar days including today, ending at next local midnight. Valid ranges are 1–366 calendar days within 1900–2100. Invalid, partial, repeated or unsupported parameters return validation Problem Details.
+
+Capture one TimeProvider instant for all SLA predicates and default-period selection. Execute three server-side aggregates (open summary, workload groups, completion outcomes) through direct EF Core in one repeatable-read transaction. Return resolved dates, UTC boundaries, timezone and evaluatedAt. Do not load work-order rows into the browser to aggregate them. Add indexes only for measured needs.
+
+Link open/status/SLA/workload summaries to supported queue filters: `openOnly`, `status`, `slaStatus`, `technicianId` and `unassigned`. Completion cards have no queue link because the existing queue lacks completion-date filtering; linking a creation-date cohort would be incorrect. A later queue request evaluates live time and can legitimately differ after time passes or work changes.
 
 ## 10. Identity, reliability, and operational quality
 
@@ -293,11 +289,11 @@ Create these as Proposed records, then mark Accepted only after architecture app
 | 004 | Dashboard cohort definitions, current backlog versus period filters, time zone and date boundaries. |
 | 005 | Identity cookies, seeded users for two roles, CSRF protection, and excluded account features. |
 | 006 | REST/OpenAPI contract, explicit mutations, pagination, and body-based expectedRevision/409 concurrency. |
-| 007 | Material UI Community grid, Recharts, URL state, and dependency/licensing policy. |
+| 007 | Material UI Community grid and dashboard summaries, URL state, and dependency/licensing policy. |
 | 008 | Compose topology, explicit migrations/seeding, deterministic fixtures, real-PostgreSQL tests. |
 
 ## 15. Review disposition and implementation gate
 
 The October 2 scope revision preserves the modular monolith, direct EF Core, explicit domain rules, simple revision conflicts, and Current Operations/Period Performance distinction. The portfolio dataset is now 400–500 work orders. Priority changes, notes, and the SLA background worker are deferred indefinitely unless explicitly requested.
 
-Keep 24/7 resolution targets, the proposed reporting time zone, single-technician assignment, append-only activity, and no reopening as documented working defaults. No additional platform capabilities are implied. IMPLEMENTATION.md defines small vertical phases with review and commit boundaries. Phases 1–4 are accepted. Revised Phase 5 implements only the portfolio dataset; its results will be recorded in PHASE5_REVIEW.md. Stop for review before the revised Phase 6 dashboard.
+Keep 24/7 resolution targets, the America/New_York reporting time zone, single-technician assignment, append-only activity, and no reopening as documented working defaults. No additional platform capabilities are implied. IMPLEMENTATION.md defines small vertical phases with review and commit boundaries. Phases 1–5 are accepted. Phase 6 implements the focused dashboard described in section 9; verification is recorded in PHASE6_REVIEW.md. Stop for review before later work.

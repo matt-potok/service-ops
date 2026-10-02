@@ -1,6 +1,6 @@
 # ServiceOps — Implementation Plan
 
-Status: Approved September 29, 2026. Phases 1–4 are accepted. Remaining phases revised October 2, 2026 for portfolio value. Revised Phase 5 is the demo dataset; revised Phase 6 is the Manager Dashboard. Priority changes, notes and the SLA worker are deferred indefinitely unless explicitly requested.
+Status: Approved September 29, 2026. Phases 1–5 are accepted. Remaining phases revised October 2, 2026 for portfolio value. Revised Phase 5 is the demo dataset; revised Phase 6 is the Manager Dashboard. Priority changes, notes and the SLA worker are deferred indefinitely unless explicitly requested.
 
 Prepared: September 29, 2026. Companion specification: [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -50,7 +50,7 @@ Phases are sequential. Each can be independently reviewed and committed on top o
 
 **Objective:** Users can find and inspect orders in a professional data-heavy list.
 
-**Backend work:** Implement server-side search, customer/location/technician/service/status/SLA/date filters, sorting, pagination, and total counts. Include completed-date, open-only, and attention predicates for later dashboard drill-throughs. Allowlist sorting and bound inputs. Evaluate SLA using one captured server instant.
+**Backend work:** Implement server-side search, customer/location/technician/service/status/SLA/date filters, sorting, pagination, and total counts. Include open-only filtering. Completed-date and attention predicates were deferred and remain outside the revised dashboard scope. Allowlist sorting and bound inputs. Evaluate SLA using one captured server instant.
 
 **Frontend work:** Build the Community data grid, business-filter toolbar, active filter chips, debounced search, pagination, sorting, and detail links. Persist state in URL parameters and reset the page on filter changes. Add distinct initial-empty, no-results, loading, and retry states.
 
@@ -96,21 +96,23 @@ Phases are sequential. Each can be independently reviewed and committed on top o
 
 The original priority-change Phase 5 and notes/worker Phase 6 are indefinitely deferred. They are not prerequisites for this dataset, the dashboard or portfolio polish. The former 750-order Phase 7 dataset is superseded by this 400–500-order scope.
 
-## Revised Phase 6 — Manager dashboard and drill-throughs
+## Revised Phase 6 — Focused Manager Dashboard
 
-**Objective:** Managers can assess the current queue and period performance without confusing their date semantics.
+The October 2 implementation request supersedes the earlier broader plan: no customer/service filters, charts, trends, mean-resolution metric, attention table or new drill-through infrastructure in this phase.
 
-**Backend work:** Implement the Manager-protected dashboard query using the architecture's metric definitions, one evaluatedAt, and consistent read handling. Include open/risk/breached counts, period completions and mean resolution time, zero-filled created/completed trends, created-cohort breakdowns, and attention preview. Reuse filtering predicates where useful without creating a generic query framework.
+**Objective:** Give Managers a polished view of current work and completed SLA performance with clearly separate date semantics.
 
-**Frontend work:** Add Current Operations and Period Performance sections, customer/service/date filters, KPI cards, Recharts charts, attention table, sample counts, and evaluation time. State explicitly that date range applies to Period Performance. Provide chart table equivalents and keyboard-accessible drill-through links carrying the correct list filters.
+**Backend work:** Add the Manager-policy endpoint with three direct EF Core aggregates, one TimeProvider instant and repeatable-read consistency. Return open total/status/SLA counts, technician workload with unassigned separate, and period completed/met/missed/compliance. Select by CompletedAt, exclude cancellations, and return null compliance for empty periods. Validate calendar date ranges and convert New York midnight boundaries to UTC.
 
-**Database work:** Add only required reporting indexes after inspecting queries against the seeded dataset. No materialized reporting pipeline, Redis, warehouse, or background-generated KPI values.
+**Frontend work:** Manager navigation and guarded route; Current Operations and Period Performance sections; inclusive dates and a last-30-calendar-days default; evaluation time and simple Material UI summaries. Include loading/error/empty states and links to existing queue filters. No charting dependency. Review desktop/tablet layouts.
 
-**Tests:** A small fixed dataset verifies metric definitions, cancellation exclusion, no-completion averages, customer/service scope, old breached backlog outside the selected period, and created-versus-completed timestamp cohorts. Verify drill-through predicates match counts at fixed time and that Operations users cannot access dashboard data.
+**Database work:** No counters, worker, pipeline or seed changes. Inspect queries against the existing dataset; add indexes only if measurements justify them.
 
-**Acceptance criteria:** All five KPIs, three charts, and attention table are present. Old open risk remains visible when the period changes; customer/service filters affect both sections. Empty resolution averages display an em dash. KPI/chart navigation selects the intended cohort, and later live-data changes are not presented as snapshot guarantees.
+**Tests:** Real PostgreSQL checks for Manager access and anonymous/Operations denial, open/terminal separation, SLA boundaries, old backlog independent of period, completion-date boundaries, met-at-deadline, empty periods, date validation and DST. Reconcile queue links at fixed time. Test frontend role navigation, date conversion and loading/error/empty states.
 
-**Suggested Git commit boundary:** `feat: deliver manager operations and performance dashboard` — include reporting API, dashboard UI, drill-throughs, and metric tests.
+**Acceptance criteria:** Status/SLA/workload totals reconcile with backlog; completed = met + missed; empty compliance is not misleading. Changing the period leaves current scope unchanged. API authorization is authoritative. No work-order dataset is aggregated in the browser. Update docs and PHASE6_REVIEW.md with performed checks/screenshots/limitations. Do not commit or push; stop for review.
+
+**Suggested Git commit boundary:** `feat: add manager operations and SLA performance dashboard` — endpoint, UI, generated contract, tests and review documentation.
 
 ## Revised Phase 7 — Portfolio review and delivery polish
 
@@ -130,4 +132,4 @@ The original priority-change Phase 5 and notes/worker Phase 6 are indefinitely d
 
 ## Review gate
 
-Phases 1–4 are accepted, committed and pushed. Revised Phase 5 is the only authorized implementation in this task. The dashboard (revised Phase 6) requires a separate instruction. No priority-change, notes or SLA-worker work is planned unless explicitly requested later. Commit messages remain suggestions; do not commit or push the Phase 5 changes before review.
+Phases 1–5 are accepted, committed and pushed. Phase 6 is the only authorized implementation. Priority changes, notes, the SLA worker, AWS and administration remain indefinitely deferred. The installed dataset must not be changed or rebased. Do not commit, push or start the next phase before review.

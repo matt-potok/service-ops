@@ -1,6 +1,6 @@
 # ServiceOps
 
-Atlas Facility Services' internal application. **Phases 1–4:** seeded sign-in, creation and searchable queue, assignment, workflow, editable details, concurrency conflicts and activity history. Phases 1–4 are accepted. Revised Phase 5 adds a deterministic 450-order portfolio dataset and is ready for review; see [Phase 5 review](PHASE5_REVIEW.md). The dashboard has not started. Priority changes, notes and the SLA worker are deferred indefinitely.
+Atlas Facility Services' internal application. **Phases 1–4:** seeded sign-in, creation and searchable queue, assignment, workflow, editable details, concurrency conflicts and activity history. Phases 1–5 are accepted, including the deterministic 450-order portfolio dataset. Phase 6 adds the Manager Dashboard and is ready for review; see [Phase 6 review](PHASE6_REVIEW.md). Priority changes, notes and the SLA worker are deferred indefinitely.
 
 ## Run with Docker Compose
 
@@ -94,7 +94,7 @@ npm test
 npm run build
 ```
 
-Tests cover both seeded users, anonymous rejection, Operations/Manager policy enforcement, invalid credentials, missing CSRF, sign-out, seed idempotency, and health. Role-protected probe controllers are injected by the test host only; no artificial manager-only product endpoint ships. Browser smoke steps: sign in with each account, verify the role, refresh, sign out, then try an incorrect password.
+Tests cover both seeded users, anonymous rejection, Operations/Manager policy enforcement, invalid credentials, missing CSRF, sign-out, seed idempotency, and health. The real dashboard endpoint requires Manager. Test-only policy probes remain confined to the test host. Browser smoke steps: sign in with each account, verify the role, refresh, sign out, then try an incorrect password.
 
 To regenerate frontend contract types while the development API is running on port 5080:
 
@@ -113,6 +113,7 @@ For schema changes in later approved work, `dotnet tool restore` installs the re
 backend/
   ServiceOps.sln
   src/ServiceOps.Api/
+    Features/Dashboard/  # Manager current and completion-period aggregates
     Features/Auth/       # Four auth endpoints and their DTOs
     Identity/            # ApplicationUser
     Features/WorkOrders/ # Create, queue, detail, mutations and activity endpoints
@@ -124,6 +125,7 @@ backend/
   tests/ServiceOps.Api.IntegrationTests/
 frontend/
   src/app/               # Router, theme, brand, signed-in account view
+  src/features/dashboard/ # Manager current operations and period performance
   src/features/auth/     # Login form
   src/features/work-orders/ # Queue/URL state, create/detail, API calls and tests
   src/lib/api/           # Small fetch client and generated contract types
@@ -211,3 +213,17 @@ Mutation endpoints are `PATCH /api/v1/work-orders/{id}`, `PUT /api/v1/work-order
 `GET /api/v1/work-orders/{id}/activity` returns `{ items, nextCursor }`, oldest first by effective timestamp and ID. Pass the opaque cursor on the next request; pageSize defaults to 25 and is limited to 1–100. `GET /api/v1/technicians` returns seeded names and active flags; inactive technicians remain filterable but cannot be assigned. No administration UI exists.
 
 Run the same backend tests, frontend typecheck/tests/build, and contract generation documented above. No dependencies were introduced in Phase 4. See `PHASE4_REVIEW.md` for the transition matrix, schema changes, checks and screenshots.
+
+## Phase 6 Manager Dashboard
+
+Sign in as **marcus.chen@atlas.example** with your configured Manager password and choose **Dashboard**. Operations users have no dashboard navigation; direct navigation displays an access message, and the API returns 403. Anonymous requests return 401. No migration, new package or seed rerun is needed; use the existing installed database.
+
+Current Operations shows all open work, status/SLA counts and current technician workload, regardless of dates. Unassigned work is separate. Cards and workload/status links open supported queue filters. Results are live and may change between dashboard and queue.
+
+Period Performance selects orders by **CompletedAt**, even if created earlier. Both displayed dates are inclusive in **America/New_York**. The API converts the start and day after the end to UTC, using inclusive start/exclusive end. Default: last 30 calendar days including today. DST changes are respected. Maximum range: 366 days; supported reporting years: 1900–2100.
+
+Met means completed at or before the persisted deadline. Compliance is met divided by completed, rounded to one decimal percent. Cancellations are excluded; empty periods show zero counts and an em dash for compliance. Completion cards have no queue links because the queue lacks completion-date filtering. The page refreshes every minute while active and on focus, and offers Refresh with an evaluation timestamp.
+
+`GET /api/v1/dashboard` accepts no filters or both `startDate=2026-09-01&endDateExclusive=2026-10-01`. It returns resolved dates, UTC boundaries and timezone. Invalid/unsupported filters return validation Problem Details. Three aggregate queries run in one repeatable-read transaction using one captured TimeProvider instant. No individual work-order dataset is sent to the dashboard.
+
+The Phase 5 data naturally ages; SLA counts may differ from old screenshots while historical completion outcomes remain stable. Do not rebase installed data to recreate past counts. See [PHASE6_REVIEW.md](PHASE6_REVIEW.md) for verification, screenshots and limitations.

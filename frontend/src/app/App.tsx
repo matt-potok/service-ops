@@ -6,6 +6,7 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { CreateWorkOrderPage } from '../features/work-orders/CreateWorkOrderPage'
 import { WorkOrderDetailPage } from '../features/work-orders/WorkOrderDetailPage'
 import { WorkOrdersPage } from '../features/work-orders/WorkOrdersPage'
+import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { Brand } from './Brand'
 
 export function App() {
@@ -15,8 +16,9 @@ export function App() {
 
   return <Routes>
     <Route path="/login" element={session.data ? <Navigate to="/" replace /> : <LoginPage />} />
-    <Route element={session.data ? <WorkspaceLayout /> : <Navigate to="/login" replace />}>
+    <Route element={session.data ? <WorkspaceLayout session={session.data} /> : <Navigate to="/login" replace />}>
       <Route path="/" element={session.data ? <Home session={session.data} /> : null} />
+      <Route path="/dashboard" element={session.data?.roles?.includes('Manager') ? <DashboardPage /> : <Alert severity="warning">Manager access is required to view the dashboard.</Alert>} />
       <Route path="/work-orders/new" element={<CreateWorkOrderPage />} />
       <Route path="/work-orders" element={<WorkOrdersPage />} />
       <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
@@ -25,9 +27,9 @@ export function App() {
   </Routes>
 }
 
-function WorkspaceLayout() {
+function WorkspaceLayout({ session }: { session: Session }) {
   const queryClient = useQueryClient()
-  const logout = useMutation({ mutationFn: signOut, onSuccess: () => queryClient.setQueryData(['session'], null) })
+  const logout = useMutation({ mutationFn: signOut, onSuccess: () => { queryClient.setQueryData(['session'], null); queryClient.removeQueries({ queryKey: ['dashboard'] }) } })
   return <div className="workspace">
     <a className="skip-link" href="#main">Skip to main content</a>
     <header className="workspace-header">
@@ -37,7 +39,7 @@ function WorkspaceLayout() {
         {logout.isPending ? 'Signing out…' : 'Sign out'}
       </Button>
     </header>
-    <nav className="workspace-nav" aria-label="Workspace"><NavLink to="/" end>Home</NavLink><NavLink to="/work-orders" end>Work orders</NavLink><NavLink to="/work-orders/new">Create work order</NavLink></nav>
+    <nav className="workspace-nav" aria-label="Workspace"><NavLink to="/" end>Home</NavLink>{session.roles?.includes('Manager') && <NavLink to="/dashboard">Dashboard</NavLink>}<NavLink to="/work-orders" end>Work orders</NavLink><NavLink to="/work-orders/new">Create work order</NavLink></nav>
     <main id="main" className="home-content">
       {logout.isError && <Alert severity="error" sx={{ mb: 3 }}>{logout.error.message}</Alert>}<Outlet />
     </main>
@@ -65,6 +67,6 @@ function Home({ session }: { session: Session }) {
           <Typography variant="body2" color="text.secondary">Your access is assigned by Atlas Facility Services.</Typography>
         </Box>
       </Paper>
-      <Button component={Link} to="/work-orders/new" variant="contained" sx={{ mt: 3 }}>Create work order</Button>
+      <Stack direction="row" spacing={2} sx={{ mt: 3 }}>{session.roles?.includes('Manager') && <Button component={Link} to="/dashboard" variant="contained">Open dashboard</Button>}<Button component={Link} to="/work-orders/new" variant="outlined">Create work order</Button></Stack>
   </>
 }

@@ -565,6 +565,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    StartDate?: string;
+                    EndDateExclusive?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DashboardResponse"];
+                        "application/json": components["schemas"]["DashboardResponse"];
+                        "text/json": components["schemas"]["DashboardResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/csrf": {
         parameters: {
             query?: never;
@@ -761,10 +834,36 @@ export interface components {
         CsrfResponse: {
             token: string;
         };
+        CurrentOperations: {
+            /** Format: int32 */
+            open: number;
+            /** Format: int32 */
+            new: number;
+            /** Format: int32 */
+            assigned: number;
+            /** Format: int32 */
+            inProgress: number;
+            /** Format: int32 */
+            onHold: number;
+            /** Format: int32 */
+            good: number;
+            /** Format: int32 */
+            atRisk: number;
+            /** Format: int32 */
+            breached: number;
+        };
         CustomerOption: {
             /** Format: uuid */
             id: string;
             name: string;
+        };
+        DashboardResponse: {
+            /** Format: date-time */
+            evaluatedAt: string;
+            timeZone: string;
+            current: components["schemas"]["CurrentOperations"];
+            workload: components["schemas"]["TechnicianWorkload"][];
+            period: components["schemas"]["PeriodPerformance"];
         };
         JsonElement: unknown;
         LocationOption: {
@@ -776,6 +875,24 @@ export interface components {
         LoginRequest: {
             email: string;
             password: string;
+        };
+        PeriodPerformance: {
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDateExclusive: string;
+            /** Format: date-time */
+            fromUtc: string;
+            /** Format: date-time */
+            toUtc: string;
+            /** Format: int32 */
+            completed: number;
+            /** Format: int32 */
+            met: number;
+            /** Format: int32 */
+            missed: number;
+            /** Format: double */
+            compliancePercent: null | number;
         };
         /** @enum {unknown} */
         Priority: "Critical" | "High" | "Normal" | "Low";
@@ -820,6 +937,13 @@ export interface components {
             id: string;
             displayName: string;
             isActive: boolean;
+        };
+        TechnicianWorkload: {
+            /** Format: uuid */
+            technicianId: null | string;
+            technicianName: string;
+            /** Format: int32 */
+            openCount: number;
         };
         ValidationProblemDetails: {
             type?: null | string;

@@ -17,6 +17,7 @@ export function CreateWorkOrderPage() {
     mutationFn: createWorkOrder,
     onSuccess: order => {
       void queryClient.invalidateQueries({ queryKey: ['work-orders'] })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.setQueryData(['work-order', order.id], order)
       navigate(`/work-orders/${order.id}`, { replace: true, state: { created: true } })
     },
