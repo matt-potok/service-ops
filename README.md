@@ -1,6 +1,6 @@
 # ServiceOps
 
-Atlas Facility Services' internal application. **Phases 1–4:** seeded sign-in, creation and searchable queue, assignment, workflow, editable details, concurrency conflicts and activity history. Phase 4 is ready for review; Phase 5 has not started. See [Phase 4 review](PHASE4_REVIEW.md) for verification.
+Atlas Facility Services' internal application. **Phases 1–4:** seeded sign-in, creation and searchable queue, assignment, workflow, editable details, concurrency conflicts and activity history. Phases 1–4 are accepted. Revised Phase 5 adds a deterministic 450-order portfolio dataset and is ready for review; see [Phase 5 review](PHASE5_REVIEW.md). The dashboard has not started. Priority changes, notes and the SLA worker are deferred indefinitely.
 
 ## Run with Docker Compose
 
@@ -18,7 +18,7 @@ Fill all three password values. Each demo-user password must be at least 12 char
 ```powershell
 docker compose config --quiet
 docker compose up --build -d
-docker compose --profile tools run --rm seed
+docker compose --profile tools run --rm seed --seed-demo
 docker compose ps --all
 ```
 
@@ -29,11 +29,11 @@ Open **http://localhost:5173**. The web service may take a moment to install its
 | elena.brooks@atlas.example | Operations | Your SEED_OPERATIONS_PASSWORD value |
 | marcus.chen@atlas.example | Manager | Your SEED_MANAGER_PASSWORD value |
 
-The explicit migration job runs before API startup. Demo seeding is a separate command, allowed only in Development. Seed reruns preserve user IDs and password hashes and ensure each role membership exists. Changing a seed password variable does not reset an existing account password. No password-reset feature is implemented. Seeding also ensures 20 fictional customers, 50 locations, and 15 technicians exist, preserving stable IDs and existing records. It creates no work orders.
+The explicit migration job runs before API startup. Demo seeding is a separate command, allowed only in Development. Seed reruns preserve user IDs and password hashes and ensure each role membership exists. Changing a seed password variable does not reset an existing account password. No password-reset feature is implemented. Seeding also ensures 20 fictional customers, 50 locations, and 15 technicians exist, preserving stable IDs and existing records. The `--seed-demo` command also installs the portfolio dataset described below. Use `--seed` only when you intentionally want users/reference data without demonstration orders.
 
 ```powershell
 docker compose logs api web
-docker compose --profile tools run --rm seed  # safe rerun
+docker compose --profile tools run --rm seed --seed-demo  # safe rerun
 docker compose down                         # preserves database
 ```
 
@@ -61,8 +61,7 @@ $env:Seed__OperationsPassword = $env:SEED_OPERATIONS_PASSWORD
 $env:Seed__ManagerPassword = $env:SEED_MANAGER_PASSWORD
 dotnet restore backend/ServiceOps.sln --locked-mode
 dotnet build backend/ServiceOps.sln --no-restore
-dotnet run --project backend/src/ServiceOps.Api --no-build -- --migrate
-dotnet run --project backend/src/ServiceOps.Api --no-build -- --seed
+dotnet run --project backend/src/ServiceOps.Api --no-build -- --migrate --seed-demo
 dotnet run --project backend/src/ServiceOps.Api --no-build --urls http://127.0.0.1:5080
 ```
 
@@ -118,7 +117,7 @@ backend/
     Identity/            # ApplicationUser
     Features/WorkOrders/ # Create, queue, detail, mutations and activity endpoints
     Features/ReferenceData/ # Customer/location/technician and creation-option lookups
-    Persistence/         # DbContext, mappings, migrations, user/reference seed
+    Persistence/         # DbContext, mappings, migrations, user/reference/demo seed
     Program.cs           # Configuration, middleware, commands, health
   src/ServiceOps.Domain/ # Reference entities, WorkOrder lifecycle and SLA rules
   tests/ServiceOps.Domain.Tests/
@@ -174,25 +173,30 @@ Phase 4 extends the queue with all six workflow statuses, multi-select status fi
 
 The only new runtime dependency is MIT-licensed MUI X Data Grid Community 9.14.0. Pagination, single-column sorting and filtering are server-side. No Pro package or paid feature is used. Existing test tooling is unchanged.
 
-### Optional small queue review fixture
+## Phase 5 portfolio dataset
 
-Normal `--seed` still creates only users/reference data. To review multiple pages, point the host connection string at an **empty work-order database**, run the normal migration and user/reference seed, then run:
+On a clean database, the startup commands above migrate, seed both users and reference data, and install **450 work orders** across roughly six months. No separate fixture command is needed. Existing databases containing work orders without the portfolio marker are refused without changing those orders; use a separate fresh development database for the demo. Test fixtures remain separate.
 
-```powershell
-# Choose and retain a fixed anchor for reproducible content/timestamps.
-$env:QueueFixture__AnchorUtc = '2026-09-30T01:00:00Z'
-dotnet run --project backend/src/ServiceOps.Api --no-build -- --seed-queue
-```
+The fixed default reference instant is **2026-10-01T18:00:00Z**, with history beginning in April 2026. Business content, timestamps, distributions and chronological work-order numbers repeat on fresh databases using the same anchor and original reference seed; generated UUIDs/password hashes need not match. The seed records its version and anchor in `DemoSeedStates`. Reruns preserve all orders, activities and subsequent edits. Changing an explicitly supplied anchor requires a fresh database; the command never resets or rebases existing data.
 
-This separate Development-only command creates 60 New orders through the existing domain factory, with creation activities, varied services/priorities and 30-minute creation spacing. It requires the seeded reference data and Operations account. It refuses a nonempty work-order database, so a rerun never duplicates or rebases existing orders. IDs and numbers are generated normally; content and timestamps are deterministic for the chosen anchor. SLA states naturally age as server time advances. This is not the Phase 7 historical demonstration dataset.
-
-For Compose against an empty seeded database, the equivalent command is:
+SLA state is always evaluated against real server time. Open Good and AtRisk examples are intended for a review near the selected anchor and will naturally become Breached later. For a later portfolio review, choose an explicit, fixed UTC instant near the planned review and retain it for reproducibility. On a fresh host database, set this **before** the migration/demo command:
 
 ```powershell
-docker compose --profile tools run --rm -e QueueFixture__AnchorUtc=2026-09-30T01:00:00Z seed --seed-queue
+$env:DemoSeed__AnchorUtc = '2026-10-02T12:30:00Z' # example review reference; select deliberately
+dotnet run --project backend/src/ServiceOps.Api --no-build -- --migrate --seed-demo
 ```
 
-No new schema migration is required for Phase 3. See `PHASE3_REVIEW.md` for exact API semantics and query/index review.
+The equivalent Compose override is:
+
+```powershell
+docker compose --profile tools run --rm -e DemoSeed__AnchorUtc=2026-10-02T12:30:00Z seed --seed-demo
+```
+
+Omitting the override on reruns accepts the already-installed anchor. A supplied anchor must use `yyyy-MM-ddTHH:mm:ssZ`. These are Development-only commands. Historical terminal outcomes remain stable as the live backlog ages; no runtime clock override or background worker is involved.
+
+The authored issue catalog supplies service/priority-specific titles, context and matching completion summaries. Specialized assets are limited to appropriate customer types. A fixed random seed weights weekday history, service demand, priorities and technician workload. Existing domain methods create every assignment and workflow activity. All orders and the installation marker commit together; a failure leaves no partial work-order dataset. PostgreSQL sequences can consume numbers during a failed attempt, so exact number repeatability assumes a fresh database.
+
+The former `QueueReviewFixture` and `--seed-queue` population path have been removed. `PHASE3_REVIEW.md` is historical verification, not a current seed guide. See [Phase 5 review](PHASE5_REVIEW.md) for measured distributions, dates, tests and queue screenshots.
 
 ## Phase 4 workflow review
 

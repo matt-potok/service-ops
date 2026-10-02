@@ -76,22 +76,23 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
-if (args.Contains("--migrate") || args.Contains("--seed") || args.Contains("--seed-queue"))
+if (args.Contains("--seed-queue"))
+    throw new InvalidOperationException("--seed-queue has been replaced by --seed-demo. Use a fresh database; existing orders are never replaced.");
+if (args.Contains("--migrate") || args.Contains("--seed") || args.Contains("--seed-demo"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     if (args.Contains("--migrate"))
         await scope.ServiceProvider.GetRequiredService<ServiceOpsDbContext>().Database.MigrateAsync();
-    if (args.Contains("--seed"))
+    if (args.Contains("--seed") || args.Contains("--seed-demo"))
     {
         if (!app.Environment.IsDevelopment())
             throw new InvalidOperationException("Demo seeding is only allowed in Development.");
         await DemoUsers.SeedAsync(scope.ServiceProvider, app.Configuration);
         await ReferenceDataSeed.SeedAsync(scope.ServiceProvider.GetRequiredService<ServiceOpsDbContext>());
     }
-    if (args.Contains("--seed-queue"))
+    if (args.Contains("--seed-demo"))
     {
-        if (!app.Environment.IsDevelopment()) throw new InvalidOperationException("Queue fixtures are only allowed in Development.");
-        await QueueReviewFixture.SeedAsync(scope.ServiceProvider.GetRequiredService<ServiceOpsDbContext>(), app.Configuration);
+        await PortfolioDemoSeed.SeedAsync(scope.ServiceProvider.GetRequiredService<ServiceOpsDbContext>(), app.Configuration);
     }
     return;
 }

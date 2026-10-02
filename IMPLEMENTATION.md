@@ -1,6 +1,6 @@
 # ServiceOps — Implementation Plan
 
-Status: Approved September 29, 2026. Phases 1–3 are accepted. Phase 4 is implemented for review October 1, 2026; later phases have not started.
+Status: Approved September 29, 2026. Phases 1–4 are accepted. Remaining phases revised October 2, 2026 for portfolio value. Revised Phase 5 is the demo dataset; revised Phase 6 is the Manager Dashboard. Priority changes, notes and the SLA worker are deferred indefinitely unless explicitly requested.
 
 Prepared: September 29, 2026. Companion specification: [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -38,7 +38,7 @@ Phases are sequential. Each can be independently reviewed and committed on top o
 
 **Frontend work:** Add the full-page creation form and detail Overview route. Provide customer-dependent location selection, service/priority inputs, server validation feedback, save progress, success navigation, and readable deadline/SLA badges. Show immutable classification as display data on detail.
 
-**Database work:** Migrate initial business tables, relationships, work-order number sequence, constraints, indexes, Revision and SlaRevision fields. Seed the 20 customers, 50 locations, and 15 technicians with realistic fictional names; defer the full historical order dataset to phase 7.
+**Database work:** Migrate initial business tables, relationships, work-order number sequence, constraints, indexes, Revision and SlaRevision fields. Seed the 20 customers, 50 locations, and 15 technicians with realistic fictional names; defer the full historical order dataset to revised Phase 5.
 
 **Tests:** Parameterized SLA durations and exact 75%/deadline boundaries; creation integration checks for valid persistence, mismatched customer/location, and required fields; one frontend test for clearing location when customer changes.
 
@@ -78,55 +78,25 @@ Phases are sequential. Each can be independently reviewed and committed on top o
 
 **Suggested Git commit boundary:** `feat: manage assignment and work-order lifecycle` — include workflow, revision conflicts, activity UI, and tests.
 
-## Phase 5 — Open-order priority changes
+## Revised Phase 5 — Portfolio-quality demo dataset
 
-**Objective:** Priority changes immediately update SLA timing and remain visible in history.
+**Objective:** Make the existing queue/detail experience convincing with 400–500 realistic orders covering roughly six months, while supplying coherent history for the future dashboard.
 
-**Backend work:** Add the priority mutation endpoint and domain method. Recalculate duration, riskAt, and deadline from the ORIGINAL CreatedAt; persist the policy values and increment SlaRevision and business Revision on a real change. Append PriorityChanged activity with previous/new priority and deadline in the same transaction. Reject terminal reprioritization and treat unchanged priority as a no-op. Return current derived SLA state.
+**Backend work:** One straightforward deterministic seeder using a fixed default anchor (or explicit fixed override), authored facilities issues, plausible customer/service/priority/technician distributions, and existing domain workflow methods. Include predominantly completed work, a small cancellation cohort and varied current backlog. Use no new dependencies, generator framework, notes, priority mutations or SLA worker. Replace the Phase 3 queue-review fixture with the single `--seed-demo` command, including existing user/reference seeding.
 
-**Frontend work:** Add an open-order priority control and clear post-save deadline/state feedback. Show previous/new priority and deadline in Activity. Hide or disable the control on terminal records with explanatory text, while retaining backend enforcement. Refresh detail/list queries after changes.
+**Frontend work:** No feature additions. Inspect the populated queue, existing filters, terminal/open details and activity at desktop/tablet widths. Capture representative screenshots.
 
-**Database work:** Use the existing SLA/revision fields and audit payload; no new service, scheduling table, or state cache. Add a migration only if mappings require a concrete missing field.
+**Database work:** Preserve 20 customers, 50 locations and 15 technicians. Add only a seed version/reference-time marker. First install requires an empty work-order database; one transaction commits orders/history and marker. Reruns preserve edits and never shift timestamps. Existing unmarked work is preserved and requires a fresh database for this dataset.
 
-**Tests:** Domain tests for shortening and extending SLAs, original creation anchoring, immediate Good/AtRisk/Breached outcomes, terminal rejection, and no-op behavior. One API integration test proves both deadline changes and old/new audit values persist atomically; reuse the stale-conflict path from phase 4.
+**Tests:** Focused PostgreSQL checks for approximate counts, all statuses/services/priorities, realistic distribution, open SLA examples at the anchor, both completed outcomes, coherent activity, deterministic business-visible output on two fresh databases, safe reruns and failure rollback. Retain Phases 1–4 regressions and run backend build/tests plus frontend tests/typecheck/build.
 
-**Acceptance criteria:** An 08:00 Normal order changed to High at 13:00 has riskAt 11:00, deadline 12:00, and immediate Breached state. Changing it to Low yields next-day 02:00/08:00 timestamps and Good state at 13:00. Completed/Cancelled orders cannot change priority. Refresh shows the same results without a monitor pass.
+**Acceptance criteria:** One documented demo-data workflow produces a useful 400–500-order dataset. Titles and context are credible; dates and histories respect existing rules; filters show meaningful results; current SLA remains based on server time and naturally ages. No dashboard or deferred features are implemented. Supply counts, effective date range, verification and queue screenshots; stop for review without committing or pushing.
 
-**Suggested Git commit boundary:** `feat: recalculate SLA when open-order priority changes` — include the complete priority action, activity presentation, and targeted tests.
+**Suggested Git commit boundary:** `feat: seed realistic portfolio operations history` — seeder, minimal marker migration, tests, updated plan/runbook and review evidence.
 
-## Phase 6 — Notes and lightweight SLA observations
+The original priority-change Phase 5 and notes/worker Phase 6 are indefinitely deferred. They are not prerequisites for this dataset, the dashboard or portfolio polish. The former 750-order Phase 7 dataset is superseded by this 400–500-order scope.
 
-**Objective:** Detail provides useful operational context through notes and periodically observed SLA events.
-
-**Backend work:** Add append-only note endpoints and NoteAdded activity. Implement a single-process BackgroundService with a 60-second non-overlapping pass over open orders. Record elapsed AtRisk/Breached observations once per SlaRevision/type, including observed deadline/threshold context. Log failure and continue at the next interval; support normal cancellation. Do not backfill closed orders missed during downtime.
-
-**Frontend work:** Add Notes tab with author/time and a plain-text composer. Render SLA observations with their observed time and deadline context so old-priority observations are understandable. Refresh visible time-sensitive queries periodically and on focus, preserving user input.
-
-**Database work:** Add note table/foreign keys and optional activity SlaRevision. Add the filtered unique constraint for threshold event deduplication; keep other activity types unrestricted.
-
-**Tests:** Note persistence/author integration check; a focused monitor check that repeated passes do not duplicate events and a new SLA revision can have its own observations. Verify reads remain correct with the worker disabled; no distributed-worker or outage-reconciliation suite.
-
-**Acceptance criteria:** Notes append and remain readable after refresh. Normal monitor passes record observations without duplicates. Previous-priority history remains intact. Turning off the worker does not change current SLA results. No explicit row locking, distributed coordination, custom retry system, or historical completeness guarantee is introduced.
-
-**Suggested Git commit boundary:** `feat: add notes and lightweight SLA activity monitoring` — include operational-context UI, monitor, minimal persistence, and tests.
-
-## Phase 7 — Complete realistic demonstration dataset
-
-**Objective:** Reviewers can explore credible operations across six months without manually entering hundreds of records.
-
-**Backend work:** Extend the explicit seed command to generate approximately 750 work orders with deterministic randomness and a configurable reference instant. Create coherent lifecycle activity, notes, priority changes, and varied completion durations. Reuse business rules where practical without routing seeds through HTTP.
-
-**Frontend work:** Verify list/detail presentation against varied names, long titles, all statuses, and realistic empty/filter scenarios. Adjust truncation and layout where needed; do not build seed-management UI.
-
-**Database work:** Use a seed-version marker for idempotence and preserve the 20 customers, 50 locations, 15 technicians, and both role users. Add no schema solely to simulate enterprise scale. Reset remains an explicit documented local operation.
-
-**Tests:** A small seed invariant check validates counts, relationship integrity, terminal timestamps, and presence of Good/AtRisk/Breached examples at the chosen reference time. Verify rerunning does not duplicate or rebase data; use a fresh database to check repeatability for the same seed/time.
-
-**Acceptance criteria:** Approximately 750 varied orders span six months; names and descriptions are plausible; all required statuses/services/priorities are represented; recent open work exhibits each SLA state; completed/cancelled orders obey domain rules; reruns preserve existing business data. Document that live SLA states age naturally.
-
-**Suggested Git commit boundary:** `feat: seed realistic six-month operations history` — include deterministic fixtures, invariant checks, and demo/reset instructions.
-
-## Phase 8 — Manager dashboard and drill-throughs
+## Revised Phase 6 — Manager dashboard and drill-throughs
 
 **Objective:** Managers can assess the current queue and period performance without confusing their date semantics.
 
@@ -142,7 +112,7 @@ Phases are sequential. Each can be independently reviewed and committed on top o
 
 **Suggested Git commit boundary:** `feat: deliver manager operations and performance dashboard` — include reporting API, dashboard UI, drill-throughs, and metric tests.
 
-## Phase 9 — Portfolio review and delivery polish
+## Revised Phase 7 — Portfolio review and delivery polish
 
 **Objective:** Deliver a coherent, documented demonstration with the critical user journeys verified.
 
@@ -152,12 +122,12 @@ Phases are sequential. Each can be independently reviewed and committed on top o
 
 **Database work:** Verify migrations on a clean database and seed reruns on an existing development database. Add indexes only for measured issues; do not rewrite accepted schema for hypothetical scale.
 
-**Tests:** Two concise end-to-end journeys: operations login/create/assign/reprioritize/note/complete and manager login/filter/drill-through. Run the focused domain/API/frontend suites, affected builds, lint/type checks, and contract drift check. Perform manual desktop/tablet and keyboard reviews, with a focused automated accessibility scan. Fix regressions rather than expanding into an exhaustive enterprise matrix.
+**Tests:** Two concise end-to-end journeys: operations login/create/assign/hold/resume/complete and manager login/filter/drill-through. Run the focused domain/API/frontend suites, affected builds, lint/type checks, and contract drift check. Perform manual desktop/tablet and keyboard reviews, with a focused automated accessibility scan. Fix regressions rather than expanding into an exhaustive enterprise matrix.
 
-**Acceptance criteria:** Clean setup follows the README; both roles can complete their supported journeys; required states are polished; builds and relevant tests pass; known monitor limitations and assumptions are documented. Supply a short demo walkthrough and representative screenshots. Final review confirms all requested capabilities and exclusions, with no unintended account, billing, dispatch, or deployment scope.
+**Acceptance criteria:** Clean setup follows the README; both roles can complete their supported journeys; required states are polished; builds and relevant tests pass; known demo-data aging and application assumptions are documented. Supply a short demo walkthrough and representative screenshots. Final review confirms all requested capabilities and exclusions, with no unintended account, billing, dispatch, or deployment scope.
 
 **Suggested Git commit boundary:** `chore: polish and document the ServiceOps demo` — include review fixes, final critical-path tests/CI, screenshots, runbook, and concise accepted ADRs reflecting the delivered design. If fixes are substantive, commit each independently before this documentation boundary.
 
 ## Review gate
 
-Architecture and this phase plan have been approved. Phases 1–3 are accepted. Phase 4 is implemented for review, with results in PHASE4_REVIEW.md. Do not proceed to Phase 5 without further direction. The suggested commit messages remain review boundaries, not automatic instructions to commit or publish.
+Phases 1–4 are accepted, committed and pushed. Revised Phase 5 is the only authorized implementation in this task. The dashboard (revised Phase 6) requires a separate instruction. No priority-change, notes or SLA-worker work is planned unless explicitly requested later. Commit messages remain suggestions; do not commit or push the Phase 5 changes before review.
