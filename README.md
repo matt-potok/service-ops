@@ -129,11 +129,3 @@ npm run build
 Domain tests cover workflow and SLA rules. API integration tests use temporary PostgreSQL databases for authentication, validation, filtering, concurrency, persistence, seeding and metric definitions. Frontend tests focus on forms, URL state, conflicts and dashboard behavior. With the development API running, `npm run api:generate` regenerates the checked-in contract; `git diff --exit-code -- src/lib/api/schema.d.ts` checks drift.
 
 See [final review](docs/FINAL_REVIEW.md) for performed checks, bundle measurements, screenshots and known limitations. [IMPLEMENTATION.md](IMPLEMENTATION.md) records the completed phases and deliberate scope exclusions.
-
-## Portfolio notice
-
-ServiceOps is an original fictional portfolio project. Atlas Facility Services and all application data are fictional. No customer or proprietary production code or data is included. It demonstrates engineering decisions and working product flows; it is not a production replacement for a commercial field-service platform.
-
-Priority changes, notes, background SLA events, scheduling, billing, administration, exports and AWS deployment are intentionally outside scope.
-
-**Reusable project description:** Designed and developed a full-stack operations and work-order management application from business requirements through architecture, implementation and local delivery. It provides operational KPIs, derived SLA visibility, intake, technician assignment, workflow tracking, filtering, activity history and completion-period management metrics. Built with React, TypeScript, ASP.NET Core, Entity Framework Core and PostgreSQL, with Docker Compose configuration and automated tests.
