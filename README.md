@@ -1,229 +1,139 @@
 # ServiceOps
 
-Atlas Facility Services' internal application. **Phases 1–4:** seeded sign-in, creation and searchable queue, assignment, workflow, editable details, concurrency conflicts and activity history. Phases 1–5 are accepted, including the deterministic 450-order portfolio dataset. Phase 6 adds the Manager Dashboard and is ready for review; see [Phase 6 review](PHASE6_REVIEW.md). Priority changes, notes and the SLA worker are deferred indefinitely.
+**A full-stack operations and work-order application for a fictional commercial facility-services company.**
 
-## Run with Docker Compose
+ServiceOps brings service intake, technician assignment, workflow and SLA visibility into one internal workspace. Built from business requirements through domain design, API development, interface design and testing, it demonstrates a practical approach to building a credible business application without unnecessary infrastructure.
 
-Prerequisite: Docker Desktop running Linux containers, with Docker Compose. No host .NET or Node installation is required for this workflow.
+## Screenshots
 
-From this repository directory in PowerShell:
+**Manager Dashboard** — current operational workload and completion-period SLA performance, with distinct date semantics.
+
+![Manager Dashboard](docs/screenshots/portfolio/dashboard-desktop.png)
+
+**Work Orders** — searchable, filterable operations queue with server-side pagination and URL-owned state.
+
+![Work Orders queue](docs/screenshots/portfolio/queue-desktop.png)
+
+**Work Order Detail** — business context, assignment, workflow actions and resolution deadlines.
+
+![Work Order Detail](docs/screenshots/portfolio/detail-desktop.png)
+
+[Activity timeline](docs/screenshots/portfolio/activity-desktop.png) · [Verification and limitations](docs/FINAL_REVIEW.md)
+
+## Business problem
+
+Atlas Facility Services manages maintenance and repair requests across customer locations. Operations staff need to know what needs attention, who owns each request and what has happened so far. Managers need a reliable view of the live backlog and completed SLA outcomes.
+
+ServiceOps centralizes that work: intake, assignment, status transitions, deadline visibility, searchable records and an activity history that stays consistent with each change.
+
+## Key features
+
+- **Two roles:** Operations manages work; Managers also access the dashboard. Authorization is enforced by the API.
+- **Work-order intake and detail:** dependent customer/location selection, service and priority, calculated SLA deadlines and readable business context.
+- **Operations queue:** search, combined filters, sorting, pagination and shareable URLs; return from detail preserves queue context.
+- **Explicit workflow:** assign, start, hold, resume, complete or cancel; required reasons and summaries, terminal-state protection and title/description correction.
+- **Activity history:** chronological changes with actor, timestamp and relevant before/after values.
+- **Manager Dashboard:** current backlog/status/SLA counts and technician workload, separate from completion-date-based met/missed/compliance metrics.
+- **Conflict handling:** stale edits receive a clear conflict response; the interface retains the draft for review instead of silently overwriting work.
+
+## Technology
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React, TypeScript, Material UI, MUI X Data Grid Community, TanStack Query, React Router, Vite |
+| Backend | C#, ASP.NET Core, ASP.NET Core Identity, Entity Framework Core, Npgsql |
+| Data | PostgreSQL |
+| Development and delivery | Docker/Compose configuration, OpenAPI-generated TypeScript contracts, GitHub Actions workflow |
+| Tests | xUnit, ASP.NET Core integration test host with real PostgreSQL, Vitest, Testing Library |
+
+Versions are pinned in project files, lockfiles, `global.json` and Dockerfiles. No paid grid or charting package is required.
+
+## Architecture
+
+A modular monolith: a React SPA, one ASP.NET Core API and one PostgreSQL database. Feature controllers use EF Core directly; a dependency-free Domain project owns business rules. Identity supplies cookie authentication and role authorization. Work-order mutations and activity persist atomically.
+
+```mermaid
+flowchart TD
+    SPA[Browser · React / TypeScript] -->|Same-origin JSON + cookies| API[ASP.NET Core API · feature controllers]
+    API --- AUTH[Identity · roles · CSRF]
+    API --> DOMAIN[Domain · workflow and SLA rules]
+    API --> EF[EF Core / Npgsql]
+    EF --> DB[(PostgreSQL)]
+    API -. OpenAPI generates types .-> SPA
+```
+
+Docker Compose describes the local web/API/database stack and explicit migration/seed commands. It is a development setup, not a claim of public production hosting. See [ARCHITECTURE.md](ARCHITECTURE.md) for the implemented design and metric definitions.
+
+## Engineering highlights
+
+- **Business operations, not generic status setters.** Domain methods enforce assignment, transition, reason and terminal-state rules.
+- **Database-backed optimistic concurrency.** An EF concurrency token and optional expected revision produce HTTP 409 conflicts; the UI always supplies its known revision.
+- **Atomic activity persistence.** Business changes and their append-only activity records commit together.
+- **Derived SLA state.** Persisted creation/risk/deadline timestamps and one server reference instant determine current state. Correctness never depends on a worker.
+- **Explicit reporting cohorts.** Current Operations includes all open work; Period Performance selects by CompletedAt, with New York calendar boundaries and meaningful empty-period behavior.
+- **Server-side data work.** Filtering, sorting, pagination and dashboard aggregation run in PostgreSQL; the browser never downloads all orders to calculate metrics.
+- **Reproducible evaluation.** Deterministic fictional demo history and real-PostgreSQL integration tests exercise the same constraints and query behavior as the application.
+- **Focused frontend delivery.** Dashboard, queue, creation and detail load as separate route chunks; the app shell stays visible during navigation.
+
+## Demo data
+
+All companies, people, locations and work orders are fictional. The demo contains **450 work orders spanning roughly six months**, 20 customers, 50 locations and 15 technicians, with plausible assignment and workflow histories. It makes the product easy to evaluate without entering hundreds of records.
+
+Seeding uses a fixed reference date and preserves installed records on reruns. Open SLA states use real server time, so historical demo backlog eventually becomes breached; this is expected. The application never freezes its clock or silently rebases existing data. See [demo data and time](docs/DEVELOPMENT.md#demo-dataset-and-time) for choosing a fixed anchor on a fresh database.
+
+## Running locally
+
+The simplest configured path is Docker Desktop with Linux containers and Docker Compose. From the repository root in PowerShell:
 
 ```powershell
+# First setup only; preserve an existing .env.
 Copy-Item .env.example .env
 notepad .env
 ```
 
-Fill all three password values. Each demo-user password must be at least 12 characters and include uppercase, lowercase, a digit, and punctuation. Avoid semicolons in the database password because Compose interpolates it into the connection string. Keep `.env` private; it is ignored by Git. Do not overwrite an existing `.env` when returning to the project.
+Fill the database and both demo-user passwords. Demo-user passwords need at least 12 characters, uppercase, lowercase, a digit and punctuation. Avoid semicolons in the database password. No passwords are stored in source control.
 
 ```powershell
 docker compose config --quiet
 docker compose up --build -d
 docker compose --profile tools run --rm seed --seed-demo
-docker compose ps --all
 ```
 
-Open **http://localhost:5173**. The web service may take a moment to install its locked dependencies on first start; check `docker compose logs web` if it is not ready. API health is at http://localhost:5080/health/ready and the development OpenAPI document at http://localhost:5080/openapi/v1.json.
+Open **http://localhost:5173**. Sign in using the password configured for the chosen account:
 
-| Account | Role | Password |
+| Account | Role | Password setting |
 | --- | --- | --- |
-| elena.brooks@atlas.example | Operations | Your SEED_OPERATIONS_PASSWORD value |
-| marcus.chen@atlas.example | Manager | Your SEED_MANAGER_PASSWORD value |
+| marcus.chen@atlas.example | Manager | SEED_MANAGER_PASSWORD |
+| elena.brooks@atlas.example | Operations | SEED_OPERATIONS_PASSWORD |
 
-The explicit migration job runs before API startup. Demo seeding is a separate command, allowed only in Development. Seed reruns preserve user IDs and password hashes and ensure each role membership exists. Changing a seed password variable does not reset an existing account password. No password-reset feature is implemented. Seeding also ensures 20 fictional customers, 50 locations, and 15 technicians exist, preserving stable IDs and existing records. The `--seed-demo` command also installs the portfolio dataset described below. Use `--seed` only when you intentionally want users/reference data without demonstration orders.
+On an existing installation, `docker compose up --build -d` is enough for this polish update; no seed rerun or migration is required. `docker compose down` preserves the database. Seed reruns do not reset user passwords or edited work orders.
 
-```powershell
-docker compose logs api web
-docker compose --profile tools run --rm seed --seed-demo  # safe rerun
-docker compose down                         # preserves database
-```
+[Full development guide](docs/DEVELOPMENT.md) includes host .NET/Node startup, migrations, configuration, troubleshooting and database lifecycle. Compose configuration is validated locally; container runtime execution and GitHub Actions execution have not been verified in this workspace.
 
-To deliberately erase this project's local database and start fresh, `docker compose down --volumes` removes the project volumes. This is destructive; it is not part of normal startup. Run startup and seed again afterward.
+## Testing
 
-## Run API and frontend on the host
-
-Prerequisites: .NET SDK **10.0.401** (or a compatible patch), Node **24.18.0**, and PostgreSQL 18. The database can run in Compose while the API/frontend run in terminals. Start with the `.env` setup above and:
+With .NET 10, Node 24 and a local PostgreSQL account configured as described in the development guide:
 
 ```powershell
-docker compose up -d db
-```
-
-Terminal 1, from the repository root:
-
-```powershell
-# Load this project's simple KEY=value file into this terminal's environment.
-Get-Content .env | Where-Object { $_ -match '^[A-Z_]+=' } | ForEach-Object {
-    $key, $value = $_ -split '=', 2
-    Set-Item -Path "Env:$key" -Value $value
-}
-$env:ASPNETCORE_ENVIRONMENT = 'Development'
-$env:ConnectionStrings__ServiceOps = "Host=localhost;Port=5432;Database=serviceops;Username=serviceops;Password=$env:POSTGRES_PASSWORD"
-$env:Seed__OperationsPassword = $env:SEED_OPERATIONS_PASSWORD
-$env:Seed__ManagerPassword = $env:SEED_MANAGER_PASSWORD
 dotnet restore backend/ServiceOps.sln --locked-mode
 dotnet build backend/ServiceOps.sln --no-restore
-dotnet run --project backend/src/ServiceOps.Api --no-build -- --migrate --seed-demo
-dotnet run --project backend/src/ServiceOps.Api --no-build --urls http://127.0.0.1:5080
-```
-
-Terminal 2, from the repository root:
-
-```powershell
-cd frontend
-npm ci
-npm run dev -- --host 127.0.0.1
-```
-
-Open http://localhost:5173. Vite proxies `/api` to port 5080 so the browser uses a single origin for cookies and CSRF. With an existing PostgreSQL server instead, create a `serviceops` database, substitute its connection string, and omit the Compose database command. Use only one API/web workflow at a time to avoid port conflicts.
-
-The `.env` file is consumed automatically by Compose, **not** by `dotnet run`; the explicit environment loading above is intentional. Cookies are HttpOnly, nonpersistent browser-session cookies, and Secure outside Development. API restarts may end sessions in containers because Phase 1 does not persist data-protection keys. Sign in again if needed.
-
-## Checks
-
-The integration suite requires real PostgreSQL. It creates a randomly named `serviceops_test_*` database per test and drops only that generated database afterward. The supplied account needs CREATEDB permission; the local Compose account has it. Never point this at a production server.
-
-From the root in the host terminal configured above:
-
-```powershell
-$env:TEST_DATABASE_CONNECTION = "Host=localhost;Port=5432;Database=postgres;Username=serviceops;Password=$env:POSTGRES_PASSWORD"
-dotnet build backend/ServiceOps.sln --no-restore
+# TEST_DATABASE_CONNECTION must identify a local PostgreSQL server with CREATEDB permission.
 dotnet test backend/ServiceOps.sln --no-build
 cd frontend
 npm ci
-npm run typecheck
 npm test
+npm run typecheck
 npm run build
 ```
 
-Tests cover both seeded users, anonymous rejection, Operations/Manager policy enforcement, invalid credentials, missing CSRF, sign-out, seed idempotency, and health. The real dashboard endpoint requires Manager. Test-only policy probes remain confined to the test host. Browser smoke steps: sign in with each account, verify the role, refresh, sign out, then try an incorrect password.
+Domain tests cover workflow and SLA rules. API integration tests use temporary PostgreSQL databases for authentication, validation, filtering, concurrency, persistence, seeding and metric definitions. Frontend tests focus on forms, URL state, conflicts and dashboard behavior. With the development API running, `npm run api:generate` regenerates the checked-in contract; `git diff --exit-code -- src/lib/api/schema.d.ts` checks drift.
 
-To regenerate frontend contract types while the development API is running on port 5080:
+See [final review](docs/FINAL_REVIEW.md) for performed checks, bundle measurements, screenshots and known limitations. [IMPLEMENTATION.md](IMPLEMENTATION.md) records the completed phases and deliberate scope exclusions.
 
-```powershell
-cd frontend
-npm run api:generate
-```
+## Portfolio notice
 
-The generated `src/lib/api/schema.d.ts` is checked in. CI regenerates it and checks for drift. The GitHub Actions workflow also performs backend build/integration tests, frontend test/type/build checks, and Compose validation. It has been authored but not run on GitHub in this workspace.
+ServiceOps is an original fictional portfolio project. Atlas Facility Services and all application data are fictional. No customer or proprietary production code or data is included. It demonstrates engineering decisions and working product flows; it is not a production replacement for a commercial field-service platform.
 
-For schema changes in later approved work, `dotnet tool restore` installs the repository-local EF CLI manifest. There is no automatic migration during normal API startup.
+Priority changes, notes, background SLA events, scheduling, billing, administration, exports and AWS deployment are intentionally outside scope.
 
-## Structure
-
-```text
-backend/
-  ServiceOps.sln
-  src/ServiceOps.Api/
-    Features/Dashboard/  # Manager current and completion-period aggregates
-    Features/Auth/       # Four auth endpoints and their DTOs
-    Identity/            # ApplicationUser
-    Features/WorkOrders/ # Create, queue, detail, mutations and activity endpoints
-    Features/ReferenceData/ # Customer/location/technician and creation-option lookups
-    Persistence/         # DbContext, mappings, migrations, user/reference/demo seed
-    Program.cs           # Configuration, middleware, commands, health
-  src/ServiceOps.Domain/ # Reference entities, WorkOrder lifecycle and SLA rules
-  tests/ServiceOps.Domain.Tests/
-  tests/ServiceOps.Api.IntegrationTests/
-frontend/
-  src/app/               # Router, theme, brand, signed-in account view
-  src/features/dashboard/ # Manager current operations and period performance
-  src/features/auth/     # Login form
-  src/features/work-orders/ # Queue/URL state, create/detail, API calls and tests
-  src/lib/api/           # Small fetch client and generated contract types
-.github/workflows/ci.yml
-compose.yaml
-```
-
-No generic repositories, MediatR, unit-of-work wrapper, event bus, Redis, or future domain structures. The API references the dependency-free Domain project. Identity and EF mappings stay in the API; controllers use EF Core directly.
-
-## Choices and dependencies
-
-| Dependency | Current purpose |
-| --- | --- |
-| ASP.NET Core Identity EF Core 10.0.12 | Password hashing, users, roles, lockout, and cookie sign-in using EF stores. |
-| Npgsql EF Core provider 10.0.3 | PostgreSQL persistence through EF Core. |
-| ASP.NET Core OpenAPI 10.0.12 | Development API contract. |
-| EF Core Design / dotnet-ef 10.0.12 | Generate the checked-in migrations. Design tooling is private to the project. |
-| MVC Testing, Microsoft.NET.Test.Sdk, xUnit and runner | Real application integration tests against PostgreSQL. |
-| React 19.3 / React DOM | Login, account, creation, and detail screens. |
-| Material UI 9.4 with Emotion | Form, account card, feedback, and theme styling. MUI X Data Grid Community 9.14 supplies the queue. No chart package. |
-| React Router 8.4 | Authenticated home/create/detail routes and not-found routing. |
-| TanStack Query 5.104 | Session/reference/detail loading and sign-in/out/create mutation state. |
-| Vite 8.3 / React plugin / TypeScript 5.9 | Development server, build, and static checking. TS 5.9 satisfies the generator's peer constraint. |
-| openapi-typescript 7.13 | Generate API DTO types consumed by the frontend. |
-
-Exact versions and transitive dependencies are locked in NuGet/npm lockfiles. Passwords/cookies/request bodies are not logged. JSON console logs contain request method/path/status/duration and trace ID. Login is limited to 10 attempts/minute per remote address, with Identity lockout after five failures per user. The local Vite proxy means browser clients share a backend remote address; this is adequate for the local single-user demonstration.
-
-Local form state and explicit validation cover the current fields; no form framework is needed. Both roles can create and inspect work orders. Vitest 5.0.2, Testing Library React 16.3.3/DOM 10.4.2, and jsdom 30.1.1 are development-only dependencies for focused creation, queue, workflow-action and conflict-UX component tests. No new runtime package was needed.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md), [IMPLEMENTATION.md](IMPLEMENTATION.md), and [Phase 1 review](PHASE1_REVIEW.md) for scope, acceptance criteria, actual verification, and limitations.
-
-## Phase 2 review journey
-
-Sign in as Operations, choose **Create work order**, then select a customer and one of its locations. Choose a service type and priority, enter a title and description, and create the order. The app navigates to its detail URL; use the Work orders queue to find it again. Refresh to verify persistence.
-
-High priority has a four-hour deadline and a three-hour risk threshold from the original creation time. Critical is two hours, Normal eight, and Low 24; all risk thresholds are 75% of duration. The server derives SLA state on every detail response. The page refreshes this response every minute while active, and displays the evaluation time and browser time zone. No SLA worker is involved.
-
-The backend tests also cover all priority durations and exact SLA boundaries, creation validation, customer/location mismatch, rejection of client-authoritative fields, unique sequence numbers, reference-seed reruns, detail reads, and transaction rollback when the activity insert fails. `npm test` checks that changing customer clears the selected location and replaces its options. The API accepts only the six documented creation fields; extra properties are rejected.
-
-When upgrading an existing Phase 1 checkout, preserve `.env` and its database volume. Run `docker compose up --build -d` followed by `docker compose --profile tools run --rm seed`, or rerun the host migration and seed commands above. No historical work-order dataset is seeded in this phase.
-
-## Phase 3 operations queue
-
-Open **Work orders** in the workspace navigation. Search title/number, combine customer/location/service/status/SLA filters, sort the grid, and choose 25/50/100 rows per page. More filters exposes inclusive/exclusive created-time inputs in UTC and Open only. Other displayed timestamps use the named browser time zone. Filters, sort and page live in the URL; refresh and browser Back/Forward preserve them. Use the work-order number link to open detail, then **Back to work orders** to restore the queue URL.
-
-Phase 4 extends the queue with all six workflow statuses, multi-select status filters, technician and assigned/unassigned filters. Open only covers New, Assigned, InProgress and OnHold. Completed-date and attention filters remain deferred and are rejected by the API.
-
-The only new runtime dependency is MIT-licensed MUI X Data Grid Community 9.14.0. Pagination, single-column sorting and filtering are server-side. No Pro package or paid feature is used. Existing test tooling is unchanged.
-
-## Phase 5 portfolio dataset
-
-On a clean database, the startup commands above migrate, seed both users and reference data, and install **450 work orders** across roughly six months. No separate fixture command is needed. Existing databases containing work orders without the portfolio marker are refused without changing those orders; use a separate fresh development database for the demo. Test fixtures remain separate.
-
-The fixed default reference instant is **2026-10-01T18:00:00Z**, with history beginning in April 2026. Business content, timestamps, distributions and chronological work-order numbers repeat on fresh databases using the same anchor and original reference seed; generated UUIDs/password hashes need not match. The seed records its version and anchor in `DemoSeedStates`. Reruns preserve all orders, activities and subsequent edits. Changing an explicitly supplied anchor requires a fresh database; the command never resets or rebases existing data.
-
-SLA state is always evaluated against real server time. Open Good and AtRisk examples are intended for a review near the selected anchor and will naturally become Breached later. For a later portfolio review, choose an explicit, fixed UTC instant near the planned review and retain it for reproducibility. On a fresh host database, set this **before** the migration/demo command:
-
-```powershell
-$env:DemoSeed__AnchorUtc = '2026-10-02T12:30:00Z' # example review reference; select deliberately
-dotnet run --project backend/src/ServiceOps.Api --no-build -- --migrate --seed-demo
-```
-
-The equivalent Compose override is:
-
-```powershell
-docker compose --profile tools run --rm -e DemoSeed__AnchorUtc=2026-10-02T12:30:00Z seed --seed-demo
-```
-
-Omitting the override on reruns accepts the already-installed anchor. A supplied anchor must use `yyyy-MM-ddTHH:mm:ssZ`. These are Development-only commands. Historical terminal outcomes remain stable as the live backlog ages; no runtime clock override or background worker is involved.
-
-The authored issue catalog supplies service/priority-specific titles, context and matching completion summaries. Specialized assets are limited to appropriate customer types. A fixed random seed weights weekday history, service demand, priorities and technician workload. Existing domain methods create every assignment and workflow activity. All orders and the installation marker commit together; a failure leaves no partial work-order dataset. PostgreSQL sequences can consume numbers during a failed attempt, so exact number repeatability assumes a fresh database.
-
-The former `QueueReviewFixture` and `--seed-queue` population path have been removed. `PHASE3_REVIEW.md` is historical verification, not a current seed guide. See [Phase 5 review](PHASE5_REVIEW.md) for measured distributions, dates, tests and queue screenshots.
-
-## Phase 4 workflow review
-
-Apply the new migration using the existing `--migrate` command (or `docker compose up --build -d`). The migration preserves existing New orders and their creation activities; it initializes UpdatedAt from CreatedAt. Normal seed commands remain unchanged.
-
-As Operations or Manager, open a New order from the queue. Assign an active technician, start work, correct title/description, place it on hold with a reason, resume and complete with a summary. Review the Activity tab and return to the queue. A separate New order can be cancelled with a reason. Both terminal states reject further edits. Priority, customer, location and service type have no edit control.
-
-For a conflict review, open the same order in two tabs, open Edit details in the first and change its title. Save a different title in the second, then submit the first. The first tab loads the current data, retains its draft and requires explicit review before another save. No mutation is automatically retried.
-
-Mutation endpoints are `PATCH /api/v1/work-orders/{id}`, `PUT /api/v1/work-orders/{id}/assignment` and `POST /api/v1/work-orders/{id}/status-transitions`. They accept an optional positive `expectedRevision`; the UI always sends it. Stale revisions and database races return 409 `stale_revision`; invalid workflow actions return 409 `invalid_transition`. Details correction supplies title and description; assignment requires an explicit technicianId (or null). Status transitions supply targetStatus and the applicable reason or summary. Unknown properties are rejected.
-
-`GET /api/v1/work-orders/{id}/activity` returns `{ items, nextCursor }`, oldest first by effective timestamp and ID. Pass the opaque cursor on the next request; pageSize defaults to 25 and is limited to 1–100. `GET /api/v1/technicians` returns seeded names and active flags; inactive technicians remain filterable but cannot be assigned. No administration UI exists.
-
-Run the same backend tests, frontend typecheck/tests/build, and contract generation documented above. No dependencies were introduced in Phase 4. See `PHASE4_REVIEW.md` for the transition matrix, schema changes, checks and screenshots.
-
-## Phase 6 Manager Dashboard
-
-Sign in as **marcus.chen@atlas.example** with your configured Manager password and choose **Dashboard**. Operations users have no dashboard navigation; direct navigation displays an access message, and the API returns 403. Anonymous requests return 401. No migration, new package or seed rerun is needed; use the existing installed database.
-
-Current Operations shows all open work, status/SLA counts and current technician workload, regardless of dates. Unassigned work is separate. Cards and workload/status links open supported queue filters. Results are live and may change between dashboard and queue.
-
-Period Performance selects orders by **CompletedAt**, even if created earlier. Both displayed dates are inclusive in **America/New_York**. The API converts the start and day after the end to UTC, using inclusive start/exclusive end. Default: last 30 calendar days including today. DST changes are respected. Maximum range: 366 days; supported reporting years: 1900–2100.
-
-Met means completed at or before the persisted deadline. Compliance is met divided by completed, rounded to one decimal percent. Cancellations are excluded; empty periods show zero counts and an em dash for compliance. Completion cards have no queue links because the queue lacks completion-date filtering. The page refreshes every minute while active and on focus, and offers Refresh with an evaluation timestamp.
-
-`GET /api/v1/dashboard` accepts no filters or both `startDate=2026-09-01&endDateExclusive=2026-10-01`. It returns resolved dates, UTC boundaries and timezone. Invalid/unsupported filters return validation Problem Details. Three aggregate queries run in one repeatable-read transaction using one captured TimeProvider instant. No individual work-order dataset is sent to the dashboard.
-
-The Phase 5 data naturally ages; SLA counts may differ from old screenshots while historical completion outcomes remain stable. Do not rebase installed data to recreate past counts. See [PHASE6_REVIEW.md](PHASE6_REVIEW.md) for verification, screenshots and limitations.
+**Reusable project description:** Designed and developed a full-stack operations and work-order management application from business requirements through architecture, implementation and local delivery. It provides operational KPIs, derived SLA visibility, intake, technician assignment, workflow tracking, filtering, activity history and completion-period management metrics. Built with React, TypeScript, ASP.NET Core, Entity Framework Core and PostgreSQL, with Docker Compose configuration and automated tests.

@@ -66,7 +66,7 @@ body { margin: 0; }
 .detail-grid dd small { display: block; color: #63756b; margin-top: 5px; line-height: 1.5; }
 .home-content:has(.queue-page) { max-width: 1520px; }
 .queue-page { min-width: 0; }
-.queue-filters { display: grid; grid-template-columns: 1.35fr 1.35fr 1fr .8fr .9fr; gap: 14px; }
+.queue-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .queue-secondary { display: grid; grid-template-columns: 1fr 1fr 160px; gap: 16px; align-items: center; }
 .queue-identity { min-width: 0; width: 100%; display: flex; flex-direction: column; justify-content: center; height: 100%; line-height: 1.6; }
 .queue-identity a { color: #205d56; font-weight: 650; width: fit-content; text-decoration: underline; text-underline-offset: 3px; }

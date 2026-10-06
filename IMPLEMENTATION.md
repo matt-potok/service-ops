@@ -1,6 +1,6 @@
 # ServiceOps — Implementation Plan
 
-Status: Approved September 29, 2026. Phases 1–5 are accepted. Remaining phases revised October 2, 2026 for portfolio value. Revised Phase 5 is the demo dataset; revised Phase 6 is the Manager Dashboard. Priority changes, notes and the SLA worker are deferred indefinitely unless explicitly requested.
+Status: Phases 1–6 accepted, committed and pushed. Final portfolio polish implemented for review on October 6, 2026; no commit or push in this phase. The application is feature-complete for its portfolio purpose.
 
 Prepared: September 29, 2026. Companion specification: [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -12,7 +12,7 @@ Preserve React/TypeScript/Vite, ASP.NET Core, direct EF Core, a PostgreSQL datab
 
 For every phase, update OpenAPI/generated frontend types when contracts change, include migrations when schema changes, and keep the README's run/review instructions accurate. Run relevant tests plus compilation/type checks for affected projects. Do not add unrelated abstractions or exhaustive coverage. Loading, empty, validation, and error behavior belongs with each feature rather than being postponed entirely to the polish phase.
 
-Phases are sequential. Each can be independently reviewed and committed on top of the preceding accepted phase. If a phase needs multiple commits, split by the completed behavior named in its acceptance criteria, keeping each commit buildable. No sub-agent delegation or separate work streams are required.
+The phases below record the delivered sequence. Phases 1–6 have been accepted; final polish is awaiting review. If a phase needs multiple commits, split by the completed behavior named in its acceptance criteria, keeping each commit buildable. No sub-agent delegation or separate work streams are required.
 
 ## Phase 1 — Runnable application and seeded sign-in
 
@@ -114,22 +114,32 @@ The October 2 implementation request supersedes the earlier broader plan: no cus
 
 **Suggested Git commit boundary:** `feat: add manager operations and SLA performance dashboard` — endpoint, UI, generated contract, tests and review documentation.
 
-## Revised Phase 7 — Portfolio review and delivery polish
+## Final phase — Portfolio and delivery polish
 
-**Objective:** Deliver a coherent, documented demonstration with the critical user journeys verified.
+**Objective:** Make the completed application and repository understandable to a prospective client in 2–5 minutes, without adding product functionality.
 
-**Backend work:** Review safe errors/logs, validation, role checks, cancellation, and observed query performance. Fix concrete issues found during review. Finish the production-like local asset-serving profile; do not design AWS infrastructure or add speculative hardening systems.
+**Backend/database:** No business changes, schema changes or seed changes. Verify the existing build, domain rules, PostgreSQL integration suite, generated contract and practical security/configuration defaults. Use a copy of the installed dataset for manual write workflows.
 
-**Frontend work:** Refine spacing, typography, table density, navigation, keyboard/focus behavior, tablet layouts, contrast, and loading/empty/error/conflict states. Ensure chart alternatives and action feedback are usable. Keep branding consistent across login, list, creation, detail, and dashboard.
+**Frontend:** Standard React.lazy route loading for Dashboard, queue, creation and detail, with a loading state inside the persistent shell. Balance the six queue filters into two rows of three at desktop width. Keep technician assignment visible beside status on desktop. Match Activity timestamps to detail formatting and name the timezone; separate hold/terminal notices from the detail fields. Review existing screens at desktop/tablet widths; fix only meaningful presentation defects.
 
-**Database work:** Verify migrations on a clean database and seed reruns on an existing development database. Add indexes only for measured issues; do not rewrite accepted schema for hypothetical scale.
+**Documentation/delivery:** Project-first README, final screenshots, a simple Mermaid architecture diagram, a separate development runbook, truthful implemented architecture and this completed delivery record. Keep useful historical reviews. Record final checks, actual bundle measurements and remaining limitations in docs/FINAL_REVIEW.md.
 
-**Tests:** Two concise end-to-end journeys: operations login/create/assign/hold/resume/complete and manager login/filter/drill-through. Run the focused domain/API/frontend suites, affected builds, lint/type checks, and contract drift check. Perform manual desktop/tablet and keyboard reviews, with a focused automated accessibility scan. Fix regressions rather than expanding into an exhaustive enterprise matrix.
+**Tests and acceptance:** Existing backend/frontend suites, build/type checks, OpenAPI drift, Compose configuration and dataset sanity. Manual Manager and Operations journeys, route refresh and desktop/tablet review. Do not claim Docker runtime, hosted delivery, browser automation or GitHub execution without evidence. No production static-file profile is required by the final request; the earlier Phase 7 hosting proposal is removed from portfolio scope.
 
-**Acceptance criteria:** Clean setup follows the README; both roles can complete their supported journeys; required states are polished; builds and relevant tests pass; known demo-data aging and application assumptions are documented. Supply a short demo walkthrough and representative screenshots. Final review confirms all requested capabilities and exclusions, with no unintended account, billing, dispatch, or deployment scope.
+**Suggested Git commit boundary:** `chore: polish ServiceOps portfolio presentation and delivery documentation` — UI polish, route splitting, screenshots and final documentation. No commit or push until user review.
 
-**Suggested Git commit boundary:** `chore: polish and document the ServiceOps demo` — include review fixes, final critical-path tests/CI, screenshots, runbook, and concise accepted ADRs reflecting the delivered design. If fixes are substantive, commit each independently before this documentation boundary.
+## Delivery status and intentional exclusions
 
-## Review gate
+| Phase | Delivered scope | Status |
+| --- | --- | --- |
+| 1 | Foundation, local stack and seeded Identity sign-in | Accepted |
+| 2 | Work-order creation, detail and SLA calculations | Accepted |
+| 3 | Searchable operations queue | Accepted |
+| 4 | Assignment, workflow, corrections, concurrency and activity | Accepted |
+| Revised 5 | Deterministic 450-order fictional portfolio dataset | Accepted |
+| Revised 6 | Manager Dashboard: Current Operations and Period Performance | Accepted |
+| Final polish | Presentation, route loading, screenshots, documentation and verification | Awaiting final review |
 
-Phases 1–5 are accepted, committed and pushed. Phase 6 is the only authorized implementation. Priority changes, notes, the SLA worker, AWS and administration remain indefinitely deferred. The installed dataset must not be changed or rebased. Do not commit, push or start the next phase before review.
+The original priority-change phase and Notes/SLA-worker phase were deliberately removed from the portfolio scope. They are not unfinished requirements. Scheduling, billing, exports, administration, notifications, additional analytics, AWS and production hosting are also excluded. No later implementation phase is planned.
+
+Historical PHASE1_REVIEW.md through PHASE6_REVIEW.md preserve evidence from their original review dates; their old counts, screenshots and “awaiting review” statements are historical. README.md and docs/DEVELOPMENT.md are the current entry points. Stop after final review delivery; do not commit or push.

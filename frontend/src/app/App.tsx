@@ -1,13 +1,15 @@
+import { lazy, Suspense } from 'react'
 import { Alert, Avatar, Box, Button, Chip, CircularProgress, Divider, Paper, Stack, Typography } from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, NavLink, Outlet, Route, Routes } from 'react-router'
 import { getSession, signOut, type Session } from '../lib/api/client'
 import { LoginPage } from '../features/auth/LoginPage'
-import { CreateWorkOrderPage } from '../features/work-orders/CreateWorkOrderPage'
-import { WorkOrderDetailPage } from '../features/work-orders/WorkOrderDetailPage'
-import { WorkOrdersPage } from '../features/work-orders/WorkOrdersPage'
-import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { Brand } from './Brand'
+
+const CreateWorkOrderPage = lazy(() => import('../features/work-orders/CreateWorkOrderPage').then(module => ({ default: module.CreateWorkOrderPage })))
+const WorkOrderDetailPage = lazy(() => import('../features/work-orders/WorkOrderDetailPage').then(module => ({ default: module.WorkOrderDetailPage })))
+const WorkOrdersPage = lazy(() => import('../features/work-orders/WorkOrdersPage').then(module => ({ default: module.WorkOrdersPage })))
+const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage').then(module => ({ default: module.DashboardPage })))
 
 export function App() {
   const session = useQuery({ queryKey: ['session'], queryFn: getSession })
@@ -41,7 +43,7 @@ function WorkspaceLayout({ session }: { session: Session }) {
     </header>
     <nav className="workspace-nav" aria-label="Workspace"><NavLink to="/" end>Home</NavLink>{session.roles?.includes('Manager') && <NavLink to="/dashboard">Dashboard</NavLink>}<NavLink to="/work-orders" end>Work orders</NavLink><NavLink to="/work-orders/new">Create work order</NavLink></nav>
     <main id="main" className="home-content">
-      {logout.isError && <Alert severity="error" sx={{ mb: 3 }}>{logout.error.message}</Alert>}<Outlet />
+      {logout.isError && <Alert severity="error" sx={{ mb: 3 }}>{logout.error.message}</Alert>}<Suspense fallback={<Box role="status" sx={{ py: 4 }}><CircularProgress size={24} /><Typography sx={{ mt: 2 }}>Loading page…</Typography></Box>}><Outlet /></Suspense>
     </main>
     <footer className="workspace-footer">Atlas Facility Services <span>ServiceOps · Internal workspace</span></footer>
   </div>

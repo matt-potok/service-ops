@@ -46,9 +46,9 @@ export function WorkOrderDetailPage() {
           <div><dt>Created</dt><dd><time dateTime={detail.createdAt}>{timestamp(detail.createdAt)}</time></dd></div>
           <div><dt>Assigned technician</dt><dd>{detail.technicianName ?? "Unassigned"}</dd></div>
         </Box>
-        {detail.holdReason && <Alert severity="warning" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>On hold: {detail.holdReason}</Alert>}
-        {detail.completedAt && <Alert severity="success">Completed {timestamp(detail.completedAt)}. This work order is closed.<Typography sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{detail.resolutionSummary}</Typography></Alert>}
-        {detail.cancelledAt && <Alert severity="info">Cancelled {timestamp(detail.cancelledAt)}. This work order is closed.<Typography sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{detail.cancellationReason}</Typography></Alert>}
+        {detail.holdReason && <Alert severity="warning" sx={{ mt: 3, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>On hold: {detail.holdReason}</Alert>}
+        {detail.completedAt && <Alert severity="success" sx={{ mt: 3 }}>Completed {timestamp(detail.completedAt)}. This work order is closed.<Typography sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{detail.resolutionSummary}</Typography></Alert>}
+        {detail.cancelledAt && <Alert severity="info" sx={{ mt: 3 }}>Cancelled {timestamp(detail.cancelledAt)}. This work order is closed.<Typography sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{detail.cancellationReason}</Typography></Alert>}
         <Divider sx={{ my: 3 }} />
         <Typography component="h2" variant="h2" sx={{ fontSize: 19, mb: 2 }}>Description</Typography>
         <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', lineHeight: 1.8 }}>{detail.description}</Typography>

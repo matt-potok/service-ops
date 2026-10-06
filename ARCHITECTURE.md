@@ -1,10 +1,10 @@
 # ServiceOps — Architecture
 
-Status: Phases 1–5 accepted. Phase 6 implements the focused Manager Dashboard requested October 2, 2026. Priority changes, notes and the SLA background worker are deferred indefinitely unless explicitly requested.
+Status: Phases 1–6 accepted. Final portfolio polish is implemented and awaiting review. Priority changes, notes and the SLA background worker are intentionally outside the completed portfolio scope.
 
 Prepared: September 28, 2026. Organization: Atlas Facility Services.
 
-Revised: October 2, 2026. The objective is a polished, credible portfolio application demonstrating senior engineering judgment, not a production replacement for a commercial field-service platform.
+Revised: October 6, 2026. The objective is a polished, credible portfolio application demonstrating senior engineering judgment, not a production replacement for a commercial field-service platform.
 
 ## 1. Purpose and scope
 
@@ -16,11 +16,11 @@ Billing, payments, customer portals, technician mobile applications, SMS, mappin
 
 ## 2. Decisions and working assumptions
 
-The review decisions are incorporated below. Unchanged business defaults remain documented assumptions. Phase 6 (Manager Dashboard) is the current implementation boundary; later phases remain deferred.
+The review decisions are incorporated below. Unchanged business defaults remain documented assumptions. This document describes the implemented portfolio application; exclusions are deliberate, not pending deliverables.
 
-| Topic | Proposed default and consequence |
+| Topic | Implemented decision and consequence |
 | --- | --- |
-| SLA meaning | Time to completed resolution, not acknowledgment or first response. Confirm that two hours to resolve a critical facility issue is intentional. |
+| SLA meaning | Time to completed resolution, not acknowledgment or first response. Critical priority has a two-hour resolution target. |
 | Calendar | Continuous elapsed time, 24/7, including holidays. No business-hours calendar or pause while waiting. |
 | Workflow | New, Assigned, InProgress, OnHold, Completed, Cancelled. The first four are open. |
 | Assignment | One optional technician per order. Technicians are workforce records, not necessarily login users. No availability or skill-matching engine. |
@@ -45,19 +45,19 @@ flowchart LR
     EF --> DB[(PostgreSQL)]
 ```
 
-Use .NET 10 LTS with ASP.NET Core 10 and EF Core 10, on supported patches. The official lifecycle lists .NET 10 support through November 14, 2028. Pin the SDK at implementation time and update patches routinely. Use the compatible Npgsql EF Core provider. Sources: [.NET support policy](https://dotnet.microsoft.com/en-us/platform/support/policy), [Npgsql provider](https://www.npgsql.org/efcore/).
+The backend uses .NET SDK 10.0.401, ASP.NET Core/EF Core 10.0.12 and Npgsql EF Core 10.0.3. SDK and package versions are pinned in global.json and project/lock files.
 
-Use PostgreSQL 18 on its latest supported minor release, subject to confirming provider compatibility in integration tests. Pin container versions; do not use floating `latest` tags. PostgreSQL maintains supported major releases through regular minor updates: [versioning policy](https://www.postgresql.org/support/versioning/).
+The local configuration targets PostgreSQL 18.6. Real PostgreSQL integration tests exercise provider translation, transactions and constraints. Container images use explicit version tags.
 
-HTTP endpoints validate transport input and invoke small, concrete use cases. Domain methods own status transitions and deadline rules. Query classes project directly to response DTOs with no tracking. EF Core handles persistence and transactions; do not wrap it in a generic repository. Avoid MediatR, a generic unit-of-work layer, event sourcing, and speculative service interfaces. Introduce an interface only at a real boundary, such as current-user access; use .NET TimeProvider for time.
+HTTP endpoints validate transport input and invoke small, concrete use cases. Domain methods own status transitions and deadline rules. Feature controllers project directly to response DTOs with no tracking. EF Core handles persistence and transactions; do not wrap it in a generic repository. Avoid MediatR, a generic unit-of-work layer, event sourcing, and speculative service interfaces. Introduce an interface only at a real boundary, such as current-user access; use .NET TimeProvider for time.
 
 Explicit exclusions: no microservices, generic repositories, MediatR, generic unit-of-work abstractions, Redis, message brokers, or event sourcing. Keep feature-oriented application code and explicit domain rules as the primary organizing mechanisms.
 
 Work-order changes and their audit entries commit in one database transaction. Domain entities never become API response objects. OpenAPI defines the HTTP contract and generates frontend TypeScript types. CI checks for stale generated contracts.
 
-## 4. Proposed backend structure
+## 4. Implemented backend structure
 
-The tree below describes future files only.
+The API owns HTTP transport, Identity and EF persistence; Domain owns business operations.
 
 ```text
 backend/
@@ -70,8 +70,6 @@ backend/
     ServiceOps.Api/
       Features/
         WorkOrders/    # Create, edit, assign, transition, list, detail
-        # Notes are deferred.
-        Activity/
         Dashboard/     # Metric definitions and aggregate queries
         ReferenceData/
         Auth/          # Identity endpoints and role policies
@@ -80,18 +78,16 @@ backend/
         Configurations/
         Migrations/
         Seeding/
-      Identity/        # ApplicationUser and current-user adapter
-      # Background SLA monitoring is deferred.
-      Common/          # Problem details, time/filter helpers
+      Identity/        # ApplicationUser
       Program.cs
   tests/
     ServiceOps.Domain.Tests/
     ServiceOps.Api.IntegrationTests/
 ```
 
-Dependency direction: API references Domain; Domain references no ASP.NET Core or EF Core packages. Tests reference their subjects. Domain audit actor IDs are scalar identifiers; the Identity implementation stays in API. Features and persistence share one assembly intentionally. Extract a separate worker executable or infrastructure project only when deployment or integration requirements justify it.
+Dependency direction: API references Domain; Domain references no ASP.NET Core or EF Core packages. Tests reference their subjects. Domain audit actor IDs are scalar identifiers; the Identity implementation stays in API. Features and persistence share one assembly intentionally. No worker or separate infrastructure project is present.
 
-## 5. Proposed frontend structure and UI stack
+## 5. Implemented frontend structure and UI stack
 
 ```text
 frontend/
@@ -101,22 +97,18 @@ frontend/
       auth/
       dashboard/        # Current workload and completion-period summaries
       work-orders/      # List, create form, detail, workflow actions
-      reference-data/   # Cached customer/location/technician lookups
-    components/         # Shared status badges, page states, dialogs
     lib/
       api/              # Fetch client, generated contract, errors
-      dates/
-    test/
-  e2e/
+    styles.css
 ```
 
-Recommend Material UI Core and MUI X Data Grid Community. Their visual consistency and table capabilities suit an internal operations platform. Community is MIT-licensed; advanced grid capabilities have commercial tiers. Use a dedicated business-filter toolbar and server-side filtering, single-column sorting, and page sizes of 25, 50, or 100. Do not depend on Pro multi-sort, grid multi-filter UI, or paid export features. Revisit licensing only if those become actual requirements. [MUI grid](https://mui.com/x/react-data-grid), [licensing](https://mui.com/x/introduction/licensing/).
+The frontend uses Material UI Core and MUI X Data Grid Community. Their visual consistency and table capabilities suit an internal operations platform. Community is MIT-licensed; advanced grid capabilities have commercial tiers. Use a dedicated business-filter toolbar and server-side filtering, single-column sorting, and page sizes of 25, 50, or 100. Do not depend on Pro multi-sort, grid multi-filter UI, or paid export features. Revisit licensing only if those become actual requirements. [MUI grid](https://mui.com/x/react-data-grid), [licensing](https://mui.com/x/introduction/licensing/).
 
-Use existing Material UI cards, status summaries and workload bars for the focused dashboard. No charting dependency is needed. Trends, created-cohort charts and attention tables are outside the current Phase 6 scope.
+Use existing Material UI cards, status summaries and workload bars for the focused dashboard. No charting dependency is needed. Trends, created-cohort charts and attention tables are outside the completed portfolio scope.
 
-Use React Router for navigation, TanStack Query for server state, and React Hook Form with Zod for forms. Local React state handles dialogs and tabs; URL parameters own filters, sort, pagination, and detail tabs. No Redux initially. API validation remains authoritative. TanStack Query provides the server-state caching/invalidation model: [documentation](https://tanstack.com/query/latest/docs/framework/react/overview). Use stable, mutually compatible React/TypeScript/Vite versions and a supported Node LTS that satisfies Vite's engine requirements, pinned in lockfiles at implementation: [Vite guide](https://vite.dev/guide/).
+React Router handles navigation, TanStack Query owns server state, and local React form state plus explicit validation handles forms. React Hook Form and Zod are not dependencies. Dashboard, queue, creation and detail use React.lazy route chunks with one Suspense loading state inside the persistent shell. Local React state handles dialogs and tabs; URL parameters own filters, sort, pagination, and detail tabs. No Redux. API validation remains authoritative. TanStack Query provides the server-state caching/invalidation model: [documentation](https://tanstack.com/query/latest/docs/framework/react/overview). React 19.3, TypeScript 5.9, Vite 8.3 and Node 24 are pinned by repository configuration and lockfiles.
 
-UI direction: restrained Atlas branding, compact spacing, readable typography, persistent navigation, clear page titles, visible filter chips, and consistent status/priority/SLA badges. Dashboard separates current backlog/SLA/workload from completion-period outcomes and compliance. Detail is a full route with Overview and Activity tabs. Creation can use a full-page form for tablet usability.
+UI direction: restrained Atlas branding, compact spacing, readable typography, persistent navigation, clear page titles, visible filter chips, and consistent status/priority/SLA badges. Dashboard separates current backlog/SLA/workload from completion-period outcomes and compliance. Detail is a full route with Overview and Activity tabs. Creation uses a full-page form for tablet usability.
 
 Customer changes clear the selected location. Disable location selection until a customer is chosen. Label every control, return focus after dialogs, expose errors inline, and announce save results. Use text/icons alongside color. Support keyboard navigation, reduced motion, sensible touch targets, and desktop/tablet layouts. Tables may scroll horizontally; important identity and action columns stay discoverable.
 
@@ -152,17 +144,17 @@ Database constraints enforce required text, positive SLA duration, ordered SLA t
 
 Use an application-managed numeric Revision as an EF concurrency token and return it in response bodies. Mutation bodies may include expectedRevision; the frontend supplies it for edits, assignment, and status transitions. If it differs from the stored revision, return 409 Conflict with errorCode `stale_revision` and a clear reload-and-review message. Increment Revision on successful business changes and translate EF concurrency failures to the same response. Without expectedRevision, validate against the current loaded state; EF still detects changes between load and save, but cannot detect an earlier stale client view. Do not implement ETag/If-Match or 412/428 precondition handling. Audit JSON contains known event fields, not arbitrary entity dumps.
 
-Initial indexes: unique Number; (CreatedAt, Id); (Status, SlaDeadlineAt, Id) for open work; CompletedAt for reporting; (LocationId, CreatedAt); (TechnicianId, Status); and (WorkOrderId, EffectiveAt, Id) on activities. Validate plans before adding every possible filter combination. Parameterized case-insensitive title/number search is sufficient at this scale; consider PostgreSQL trigram indexes only after measurement.
+Implemented indexes include unique work-order Number, foreign-key indexes and (WorkOrderId, EffectiveAt, Id) on activity, alongside reference-data uniqueness. Queue and dashboard aggregates were measured against 450 orders; no speculative reporting/filter indexes were added. Parameterized case-insensitive title/number search and offset pagination suit this dataset.
 
-## 7. API proposal
+## 7. API contract
 
-Use JSON under `/api/v1`, camelCase fields, ISO 8601 UTC timestamps, and explicit request/response DTOs. All endpoints require authentication except login and limited health checks. Manager policy protects dashboard endpoints; operations mutations permit both roles. The client never supplies an authoritative actor, creation timestamp, or SLA deadline.
+Use JSON under `/api/v1`, camelCase fields, ISO 8601 UTC timestamps, and explicit request/response DTOs. Business endpoints require authentication. Login, antiforgery-token acquisition and limited health checks are anonymous; OpenAPI is exposed only in Development. Manager policy protects dashboard endpoints; operations mutations permit both roles. The client never supplies an authoritative actor, creation timestamp, or SLA deadline.
 
 | Method and route | Behavior |
 | --- | --- |
 | POST /auth/login; POST /auth/logout; GET /auth/me | Session lifecycle and current user/roles. |
 | GET /auth/csrf | Obtain the antiforgery request token for cookie-authenticated mutations. |
-| GET /customers | Active selection records; optional includeInactive for historical filtering. |
+| GET /customers | Active customer selection records. |
 | GET /customers/{id}/locations | Dependent location lookup. |
 | GET /technicians | Technician filter/assignment lookup. |
 | GET /reference-data | Enum codes and display labels. |
@@ -209,9 +201,9 @@ On creation, the backend captures one UTC instant from TimeProvider, looks up th
 
 `deadline = createdAt + duration`; `riskAt = createdAt + duration * 0.75`.
 
-For open orders, Good means now < riskAt; AtRisk means riskAt <= now < deadline; Breached means now >= deadline. This proposes an explicit inclusive breach boundary. OnHold continues the clock. Terminal orders have no active SLA state; return null rather than misleadingly showing Good. Separately derive completion outcome as Met when completedAt <= deadline and Missed when completedAt > deadline. Cancellation has no completion outcome and is excluded from resolution averages. Completing exactly at the deadline is therefore on time, although an order still open at that instant is due/breached by the operational boundary convention.
+For open orders, Good means now < riskAt; AtRisk means riskAt <= now < deadline; Breached means now >= deadline. The breach boundary is inclusive. OnHold continues the clock. Terminal orders have no active SLA state; return null rather than misleadingly showing Good. Separately derive completion outcome as Met when completedAt <= deadline and Missed when completedAt > deadline. Cancellation has no completion outcome. Completing exactly at the deadline is therefore on time, although an order still open at that instant is due/breached by the operational boundary convention.
 
-Never use a worker-updated status column as the authoritative current SLA state. Lists, details, dashboard counts, and filters evaluate the same timestamp predicates in SQL using the captured server time; domain tests verify the equivalent pure rules. Persisted policy/duration values prevent configuration changes from silently rewriting deadlines.
+Never use a worker-updated status column as the authoritative current SLA state. Lists, dashboard counts and filters evaluate the timestamp predicates in SQL using captured server time; details use the equivalent domain rules. Tests verify the boundaries. Persisted policy/duration values prevent configuration changes from silently rewriting deadlines.
 
 ### Deferred functionality
 
@@ -235,35 +227,35 @@ Link open/status/SLA/workload summaries to supported queue filters: `openOnly`, 
 
 Use ASP.NET Core Identity with same-origin HttpOnly session cookies, Secure outside local development, an appropriate SameSite policy, and antiforgery protection for mutations. Use framework password hashing and lockout; rate-limit login attempts. Seed fictional development/demo users for both Operations and Manager using environment-provided passwords. No authentication bypass or frontend-only role enforcement. Registration, account administration, password-reset UI, SSO, and complex authorization remain outside scope; do not build extension infrastructure for them.
 
-Log structured request completion, trace IDs, safe work-order identifiers, concurrency conflicts, and safe operation results. Do not log passwords, cookies, free-text notes, or request bodies. Expose liveness separately from readiness/database connectivity; limit sensitive diagnostics to development. Audit history is business evidence, not a substitute for operational logs or a legally tamper-proof ledger.
+Structured JSON logs record request method/path/status/duration and trace ID. Business changes are recorded separately as activity. Do not log passwords, cookies, free-text notes, or request bodies. Expose liveness separately from readiness/database connectivity; limit sensitive diagnostics to development. Audit history is business evidence, not a substitute for operational logs or a legally tamper-proof ledger.
 
 Keep parameterized queries, strict input validation, plain-text rendering, restrictive same-origin access, and secret-free source control. Use asynchronous DB calls and project only needed columns. No Redis/cache initially: the dataset is small, and stale SLA counts would be costly. Measure API latency on representative data before adding optimization layers.
 
 ## 11. Docker and local development
 
-Propose a monorepo with `backend/`, `frontend/`, `docs/adr/`, `infra/`, and a root Compose definition and README. This proposal can move to the repository root after approval.
+The monorepo contains backend/, frontend/, docs/, root configuration, the Compose definition and README. No infra/ or separate ADR project exists.
 
 Compose services:
 
 - **db:** PostgreSQL, named persistent volume, pg_isready health check; bind any host database port to loopback.
 - **migrate:** one-shot command using the backend image, waits for database health, applies checked-in migrations, exits on failure.
 - **seed:** explicit development-only profile/command, runs after migration, never automatically clears a database.
-- **api:** waits for migration success, runs the API, accepts configuration from environment; optional dotnet watch development override.
+- **api:** waits for migration success, runs the API, accepts configuration from environment.
 - **web:** Node/Vite development server with source bind mount and isolated node_modules volume, bound locally; proxies `/api` to the api service so the browser uses one origin. Proxy configuration must include login/session routes.
 
-Offer two documented workflows: full Compose for reproducibility, and database in Compose with frontend/API running on the host for debugger convenience. Use the same schema and configuration names in both. A production-like local profile builds React assets and serves them from the API's static-file host, with API routing before the SPA fallback. Use multi-stage builds and a non-root runtime image. This does not choose AWS hosting.
+Offer two documented workflows: full Compose for reproducibility, and database in Compose with frontend/API running on the host for debugger convenience. Use the same schema and configuration names in both. The frontend production build is verified, but no production static-file hosting profile is implemented. The backend Dockerfile uses a multi-stage build and non-root runtime. Public hosting and AWS are outside portfolio scope.
 
-Pin compatible SDK, Node, NuGet/npm dependencies, and image versions; commit dependency lockfiles. Provide `.env.example` with nonsecret placeholders and keep actual `.env` ignored. Persist development cookie-protection keys if login survival across container restarts is desired. Avoid automatic migration during every API startup. Document startup, migration, seed, tests, and an explicitly destructive reset command after implementation.
+Pin compatible SDK, Node, NuGet/npm dependencies, and image versions; commit dependency lockfiles. Provide `.env.example` with nonsecret placeholders and keep actual `.env` ignored. Container data-protection keys are not persisted; API restarts can require sign-in again. Avoid automatic migration during every API startup. Document startup, migration, seed, tests, and an explicitly destructive reset command after implementation.
 
 ## 12. Portfolio demo data
 
-Revised Phase 5 seeds 20 fictional commercial customers, 50 locations, 15 technicians, both user roles and 400–500 work orders over roughly six months. Retain the existing named reference entities. The former 750-order target is superseded.
+Revised Phase 5 seeds 20 fictional commercial customers, 50 locations, 15 technicians, both user roles and 450 work orders over roughly six months. Retain the existing named reference entities. The former 750-order target is superseded.
 
 Use one fixed default reference instant, with an explicit fixed override for a fresh database, and deterministic randomness. Author varied issue titles, descriptions and matching resolutions. Restrict specialized assets to appropriate customer types. Most orders are Normal priority and Completed; Critical and cancellations are uncommon. Spread assignments unevenly but plausibly across technicians. Recent open work includes all open statuses and Good/AtRisk/Breached at the reference instant; retain some older breached backlog.
 
 Create histories through the existing WorkOrder domain methods with an explicit seed TimeProvider. Do not change priority or manufacture notes/SLA-observation events. Completed dates and activity must follow creation, assignment, work start and optional hold/resume. Include both met and missed deadlines.
 
-A single development-only `--seed-demo` command includes the existing authentication/reference seed and installs the work-order dataset only into an empty work-order database. Store a version/reference-time marker in the same transaction as the dataset. Reruns preserve edits and never rebase dates; changed anchors require a fresh database. Remove the old queue-review generator. No Faker/Bogus dependency, simulation framework, generic builders or separate seeding project.
+A single development-only `--seed-demo` command includes the existing authentication/reference seed and installs the work-order dataset only into an empty work-order database. Store a version/reference-time marker in the same transaction as the dataset. Reruns preserve edits and never rebase dates; changed anchors require a fresh database. The old queue-review generator was removed. No Faker/Bogus dependency, simulation framework, generic builders or separate seeding project.
 
 Live API evaluation continues using current server time; the default dataset intentionally does not move every day. Document the exact effective dates and how to choose a new fixed anchor for a fresh review database. Do not freeze the application clock, silently reset a database or change existing rows to keep SLA badges green.
 
@@ -273,15 +265,15 @@ Prioritize portfolio value over exhaustive enterprise coverage. Domain tests cov
 
 Use a small real-PostgreSQL integration suite for creation/location validation, combined filtering and pagination, role restrictions, a stale-revision conflict, atomic workflow/activity persistence, and dashboard metric/list agreement. Add focused seed invariants, deterministic fresh-database comparison, safe rerun and transaction rollback checks. Avoid EF's in-memory provider for relational behavior. Do not build outage simulation, distributed-worker, or exhaustive concurrency suites.
 
-Frontend tests target dependent customer/location selection, workflow/conflict feedback, and URL filter behavior. Keep a small end-to-end suite: one operations lifecycle and one manager dashboard drill-through. Review loading, empty, failure, conflict, keyboard, and tablet behavior manually, supplemented by focused accessibility checks. Add regression tests for meaningful defects rather than chasing a coverage percentage.
+Frontend tests target dependent customer/location selection, workflow/conflict feedback, and URL filter behavior. Manual browser smoke covers one operations lifecycle and one manager dashboard drill-through; there is no committed automated end-to-end suite. Review loading, empty, failure, conflict, keyboard, and tablet behavior manually, supplemented by focused accessibility checks. Add regression tests for meaningful defects rather than chasing a coverage percentage.
 
-CI will run format/lint, TypeScript checking, production frontend build, backend build, domain/integration tests, contract drift checks, and a small critical-path end-to-end suite. Document measured query latency, test scope, and known limitations rather than claiming production readiness from unit tests alone.
+The authored GitHub Actions workflow runs TypeScript checks, frontend tests/build, backend build/domain/integration tests, contract drift and Compose configuration validation. It does not include lint or browser end-to-end jobs. GitHub execution has not been verified in this workspace. Local verification and limitations are recorded in docs/FINAL_REVIEW.md.
 
-## 14. Proposed ADRs
+## 14. Accepted architecture decisions
 
-Create these as Proposed records, then mark Accepted only after architecture approval. Each should record context, decision, alternatives, consequences, and reconsideration triggers.
+The following summarizes accepted decisions embodied in the code. These are a compact decision index, not separate uncreated ADR deliverables.
 
-| ADR | Decision |
+| Decision | Summary |
 | --- | --- |
 | 001 | Modular monolith, two backend production projects, direct EF Core, one database. |
 | 002 | Workflow, terminal statuses, immutable customer/location/service/priority, and audit retention. |
@@ -292,8 +284,8 @@ Create these as Proposed records, then mark Accepted only after architecture app
 | 007 | Material UI Community grid and dashboard summaries, URL state, and dependency/licensing policy. |
 | 008 | Compose topology, explicit migrations/seeding, deterministic fixtures, real-PostgreSQL tests. |
 
-## 15. Review disposition and implementation gate
+## 15. Final scope
 
 The October 2 scope revision preserves the modular monolith, direct EF Core, explicit domain rules, simple revision conflicts, and Current Operations/Period Performance distinction. The portfolio dataset is now 400–500 work orders. Priority changes, notes, and the SLA background worker are deferred indefinitely unless explicitly requested.
 
-Keep 24/7 resolution targets, the America/New_York reporting time zone, single-technician assignment, append-only activity, and no reopening as documented working defaults. No additional platform capabilities are implied. IMPLEMENTATION.md defines small vertical phases with review and commit boundaries. Phases 1–5 are accepted. Phase 6 implements the focused dashboard described in section 9; verification is recorded in PHASE6_REVIEW.md. Stop for review before later work.
+The delivered portfolio retains 24/7 resolution targets, America/New_York reporting dates, single-technician assignment, append-only activity and no reopening. Phases 1–6 are accepted. Final polish adds no product functionality. IMPLEMENTATION.md records the completed delivery sequence and intentional exclusions; docs/FINAL_REVIEW.md records final verification.

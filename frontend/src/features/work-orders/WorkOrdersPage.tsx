@@ -62,7 +62,7 @@ export function WorkOrdersPage() {
       fields[0].width = 240
       return [fields[0], fields[2], fields[4], fields[5], fields[1], fields[3], fields[8], fields[6], fields[7]]
     }
-    return fields
+    return [fields[0], fields[1], fields[2], fields[3], fields[8], fields[4], fields[5], fields[6], fields[7]]
   }, [returnTo, compact])
   const selectionProps = { select: { native: true }, inputLabel: { shrink: true } } as const
   const failure = orders.error instanceof WorkOrderApiError ? orders.error : null

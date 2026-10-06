@@ -9,3 +9,12 @@
 .idea/
 frontend/playwright-report/
 frontend/test-results/
+
+# Local secrets and review artifacts
+.env.*
+!.env.example
+*.log
+*.dump
+*.backup
+.DS_Store
+Thumbs.db

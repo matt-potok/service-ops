@@ -5,3 +5,9 @@
 **/dist
 .env
 work
+
+.env.*
+!.env.example
+*.log
+*.dump
+*.backup
